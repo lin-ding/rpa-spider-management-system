@@ -2,7 +2,6 @@ package com.example.rpa.util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,21 +13,11 @@ import java.util.Date;
  */
 @Component
 public class JwtUtil {
-    @Value("${jwt.secret:RpaSpiderManagementSystemSecretKey2024ForLoginAuthentication}")
+    @Value("${jwt.secret:RpaSpiderManagementSystem2025SecretKeyForJWTHmacSha256}")
     private String secret;
     
     @Value("${jwt.expiration:86400000}")
     private Long expiration;
-
-    private SecretKey secretKey;
-    
-    @Autowired
-    private TokenBlacklist tokenBlacklist;
-    
-    @jakarta.annotation.PostConstruct
-    public void init() {
-        this.secretKey = getSigningKey();
-    }
 
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes();
@@ -73,28 +62,10 @@ public class JwtUtil {
      */
     public boolean validateToken(String token) {
         try {
-            // 检查Token是否在黑名单中
-            if (tokenBlacklist.isBlacklisted(token)) {
-                return false;
-            }
-            
             getClaims(token);
             return true;
         } catch (Exception e) {
             return false;
-        }
-    }
-    
-    /**
-     * 使Token失效（加入黑名单）
-     */
-    public void invalidateToken(String token) {
-        try {
-            Claims claims = getClaims(token);
-            Date expiration = claims.getExpiration();
-            tokenBlacklist.addToBlacklist(token, expiration.getTime());
-        } catch (Exception e) {
-            // 如果Token无效，直接忽略
         }
     }
 

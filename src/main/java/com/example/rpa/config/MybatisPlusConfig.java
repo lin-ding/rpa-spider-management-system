@@ -1,19 +1,15 @@
 package com.example.rpa.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.config.GlobalConfig;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
-import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import javax.sql.DataSource;
 import java.time.LocalDateTime;
@@ -26,33 +22,17 @@ import java.time.LocalDateTime;
 public class MybatisPlusConfig implements MetaObjectHandler {
 
     /**
-     * SqlSessionFactory Bean - 使用MyBatis-Plus的MybatisSqlSessionFactoryBean
+     * SqlSessionFactory Bean
      */
     @Bean
     public SqlSessionFactory sqlSessionFactory(DataSource dataSource) throws Exception {
-        MybatisSqlSessionFactoryBean factoryBean = new MybatisSqlSessionFactoryBean();
+        org.mybatis.spring.SqlSessionFactoryBean factoryBean = new org.mybatis.spring.SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
         
         // 设置 MyBatis 配置
-        MybatisConfiguration configuration = new MybatisConfiguration();
+        org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
         configuration.setMapUnderscoreToCamelCase(true);
         factoryBean.setConfiguration(configuration);
-        
-        // 设置全局配置
-        GlobalConfig globalConfig = new GlobalConfig();
-        globalConfig.setMetaObjectHandler(this);
-        
-        // 设置全局 ID 类型为自增
-        GlobalConfig.DbConfig dbConfig = new GlobalConfig.DbConfig();
-        dbConfig.setIdType(com.baomidou.mybatisplus.annotation.IdType.AUTO);
-        globalConfig.setDbConfig(dbConfig);
-        
-        factoryBean.setGlobalConfig(globalConfig);
-        
-        // 设置分页插件
-        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
-        factoryBean.setPlugins(interceptor);
         
         // 设置 Mapper XML 文件位置
         org.springframework.core.io.support.PathMatchingResourcePatternResolver resolver = new org.springframework.core.io.support.PathMatchingResourcePatternResolver();

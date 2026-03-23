@@ -18,7 +18,7 @@ public interface AuthService {
     LoginResponse login(LoginRequest request);
 
     /**
-     * 用户登出（使Token失效）
+     * 用户登出
      */
     void logout(String token);
 
@@ -36,14 +36,4 @@ public interface AuthService {
      * 验证 Token
      */
     boolean validateToken(String token);
-
-    /**
-     * 修改个人信息
-     */
-    void updateUserInfo(Long userId, String realName, String email, String phone);
-
-    /**
-     * 修改密码
-     */
-    void changePassword(Long userId, String oldPassword, String newPassword);
 }

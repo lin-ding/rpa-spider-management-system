@@ -1,45 +1,47 @@
 package com.example.rpa.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.example.rpa.dto.AddUserRequest;
-import com.example.rpa.dto.ResetPasswordRequest;
-import com.example.rpa.dto.UpdateUserRequest;
-import com.example.rpa.dto.UserQueryRequest;
 import com.example.rpa.entity.SysUser;
-import com.example.rpa.vo.UserDetailVO;
-import com.example.rpa.vo.UserListItemVO;
 
 import java.util.List;
 
+/**
+ * 系统用户 Service
+ */
 public interface SysUserService {
 
+    /**
+     * 分页查询用户列表
+     */
     Page<SysUser> getUserPage(Integer current, Integer size, SysUser user);
 
-    Page<UserListItemVO> getUserPageWithRoles(UserQueryRequest request);
-
+    /**
+     * 根据 ID 查询用户
+     */
     SysUser getUserById(Long id);
 
-    UserDetailVO getUserDetailById(Long id);
-
-    void addUser(AddUserRequest request);
-
+    /**
+     * 新增用户
+     */
     void addUser(SysUser user);
 
+    /**
+     * 修改用户
+     */
     void updateUser(SysUser user);
 
-    void updateUser(UpdateUserRequest request);
-
+    /**
+     * 删除用户
+     */
     void deleteUser(Long id);
 
+    /**
+     * 重置用户密码
+     */
     void resetPassword(Long userId, String newPassword);
 
-    void resetPassword(ResetPasswordRequest request);
-
-    boolean checkUsernameUnique(String username);
-
+    /**
+     * 检查用户名是否唯一
+     */
     boolean checkUsernameUnique(SysUser user);
-
-    void toggleUserStatus(Long userId);
-
-    List<SysUser> searchUsersByUsername(String keyword);
 }
