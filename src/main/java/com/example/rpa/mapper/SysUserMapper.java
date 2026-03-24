@@ -18,9 +18,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      */
     SysUser selectByUsername(@Param("username") String username);
 
-    /**
-     * 查询用户的角色列表
-     */
+    SysUser selectByUsernameIncludeDeleted(@Param("username") String username);
+
     List<String> selectRoleCodesByUserId(@Param("userId") Long userId);
 
     /**

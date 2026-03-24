@@ -5,22 +5,31 @@ import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/**
+ * 流程管理实体类
+ */
 @Data
-@TableName("sys_role")
-public class SysRole implements Serializable {
+@TableName("rpa_process")
+public class RpaProcess implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
-    private String roleName;
+    private String processName;
 
-    private String roleCode;
+    private String processCode;
 
     private String description;
 
+    private Integer processType;
+
+    private String scriptContent;
+
     private Integer status;
+
+    private Long createBy;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

@@ -13,9 +13,9 @@ public class PasswordGenerator {
 
     @Test
     public void generate() {
-        String rawPassword = "admin123";
+        String rawPassword = "123456";
         String encoded = passwordEncoder.encode(rawPassword);
-        System.out.println("明文密码: " + rawPassword);
-        System.out.println("加密后的BCrypt哈希: " + encoded);
+        System.out.println("明文密码：" + rawPassword);
+        System.out.println("加密后的 BCrypt 哈希：" + encoded);
     }
 }

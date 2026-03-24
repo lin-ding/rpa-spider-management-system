@@ -16,13 +16,16 @@
         <result property="updateTime" column="update_time"/>
     </resultMap>
 
-    <!-- 根据用户名查询用户 -->
     <select id="selectByUsername" resultMap="SysUserResult">
         SELECT * FROM sys_user 
         WHERE username = #{username} AND deleted = 0
     </select>
 
-    <!-- 查询用户的角色列表 -->
+    <select id="selectByUsernameIncludeDeleted" resultMap="SysUserResult">
+        SELECT * FROM sys_user 
+        WHERE username = #{username}
+    </select>
+
     <select id="selectRoleCodesByUserId" resultType="java.lang.String">
         SELECT r.role_code 
         FROM sys_role r

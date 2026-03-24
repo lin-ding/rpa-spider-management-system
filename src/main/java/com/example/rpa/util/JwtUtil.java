@@ -14,7 +14,7 @@ import java.util.Date;
  */
 @Component
 public class JwtUtil {
-    @Value("${jwt.secret:RpaSpiderManagementSystem2025SecretKeyForJWTHmacSha256}")
+    @Value("${jwt.secret:RpaSpiderManagementSystemSecretKey2024ForLoginAuthentication}")
     private String secret;
     
     @Value("${jwt.expiration:86400000}")
