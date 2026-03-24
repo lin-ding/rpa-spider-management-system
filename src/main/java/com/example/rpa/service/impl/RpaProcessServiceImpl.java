@@ -7,8 +7,6 @@ import com.example.rpa.exception.BusinessException;
 import com.example.rpa.mapper.RpaProcessMapper;
 import com.example.rpa.service.RpaProcessService;
 import com.example.rpa.util.SecurityUtil;
-import com.example.rpa.vo.ProcessDesignVO;
-import com.example.rpa.vo.ProcessDetailVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -45,12 +43,12 @@ public class RpaProcessServiceImpl implements RpaProcessService {
     }
 
     @Override
-    public ProcessDetailVO getProcessById(Long id) {
+    public RpaProcess getProcessById(Long id) {
         RpaProcess process = rpaProcessMapper.selectById(id);
         if (process == null) {
             throw new BusinessException("流程不存在");
         }
-        return toDetailVO(process);
+        return process;
     }
 
     @Override
@@ -74,32 +72,8 @@ public class RpaProcessServiceImpl implements RpaProcessService {
                 throw new BusinessException("流程编码已存在");
             }
         }
-
-        existing.setProcessName(process.getProcessName());
-        existing.setProcessCode(process.getProcessCode());
-        existing.setDescription(process.getDescription());
-        existing.setProcessType(process.getProcessType());
-        existing.setScriptContent(process.getScriptContent());
-        existing.setStatus(process.getStatus());
-
-        rpaProcessMapper.updateById(existing);
-    }
-
-    @Override
-    public void saveProcessDesign(Long id, ProcessDesignVO designVO) {
-        RpaProcess existing = rpaProcessMapper.selectById(id);
-        if (existing == null) {
-            throw new BusinessException("流程不存在");
-        }
-
-        if (!StringUtils.hasText(designVO.getProcessData())) {
-            throw new BusinessException("流程设计数据不能为空");
-        }
-
-        // 当前阶段先将四步流程 JSON 暂存到 scriptContent 字段中，
-        // 等后续流程模型稳定后再拆分为专用结构。
-        existing.setScriptContent(designVO.getProcessData());
-        rpaProcessMapper.updateById(existing);
+        
+        rpaProcessMapper.updateById(process);
     }
 
     @Override
@@ -119,21 +93,5 @@ public class RpaProcessServiceImpl implements RpaProcessService {
             wrapper.ne(RpaProcess::getId, process.getId());
         }
         return rpaProcessMapper.selectCount(wrapper) == 0;
-    }
-
-    private ProcessDetailVO toDetailVO(RpaProcess process) {
-        ProcessDetailVO vo = new ProcessDetailVO();
-        vo.setId(process.getId());
-        vo.setProcessName(process.getProcessName());
-        vo.setProcessCode(process.getProcessCode());
-        vo.setDescription(process.getDescription());
-        vo.setProcessType(process.getProcessType());
-        vo.setScriptContent(process.getScriptContent());
-        vo.setProcessData(process.getScriptContent());
-        vo.setStatus(process.getStatus());
-        vo.setCreateBy(process.getCreateBy());
-        vo.setCreateTime(process.getCreateTime());
-        vo.setUpdateTime(process.getUpdateTime());
-        return vo;
     }
 }

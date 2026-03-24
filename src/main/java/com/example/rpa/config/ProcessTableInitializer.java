@@ -23,7 +23,7 @@ public class ProcessTableInitializer implements CommandLineRunner {
     private void createProcessTable() {
         String sql = """
             CREATE TABLE IF NOT EXISTS rpa_process (
-                id BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '流程 ID',
+                id BIGINT(20) NOT NULL COMMENT '流程 ID',
                 process_name VARCHAR(100) NOT NULL COMMENT '流程名称',
                 process_code VARCHAR(50) NOT NULL COMMENT '流程编码',
                 description VARCHAR(500) DEFAULT NULL COMMENT '流程描述',
@@ -57,28 +57,29 @@ public class ProcessTableInitializer implements CommandLineRunner {
         }
 
         String[][] processData = {
-            {"股票数据采集流程", "stock_collection", "采集股票市场数据并存储到数据库", "1", "1"},
-            {"基金净值处理流程", "fund_processing", "处理基金净值数据并生成报告", "2", "1"},
-            {"日报自动生成流程", "daily_report", "自动生成每日数据采集报告", "3", "1"},
-            {"汇率数据同步流程", "exchange_sync", "同步汇率数据到本地数据库", "1", "0"},
-            {"财务报表处理流程", "finance_report", "处理财务报表数据", "2", "1"}
+            {"1", "股票数据采集流程", "stock_collection", "采集股票市场数据并存储到数据库", "1", "1"},
+            {"2", "基金净值处理流程", "fund_processing", "处理基金净值数据并生成报告", "2", "1"},
+            {"3", "日报自动生成流程", "daily_report", "自动生成每日数据采集报告", "3", "1"},
+            {"4", "汇率数据同步流程", "exchange_sync", "同步汇率数据到本地数据库", "1", "0"},
+            {"5", "财务报表处理流程", "finance_report", "处理财务报表数据", "2", "1"}
         };
 
         String insertSql = """
-            INSERT INTO rpa_process (process_name, process_code, description, process_type, status, create_by)
-            VALUES (?, ?, ?, ?, ?, 1)
+            INSERT INTO rpa_process (id, process_name, process_code, description, process_type, status, create_by)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
             """;
 
         for (String[] data : processData) {
             try {
                 jdbcTemplate.update(insertSql, 
-                    data[0], 
+                    Long.parseLong(data[0]), 
                     data[1], 
                     data[2], 
-                    Integer.parseInt(data[3]),
-                    Integer.parseInt(data[4]));
+                    data[3], 
+                    Integer.parseInt(data[4]),
+                    Integer.parseInt(data[5]));
             } catch (Exception e) {
-                log.warn("插入流程数据失败: {}", data[0]);
+                log.warn("插入流程数据失败: {}", data[1]);
             }
         }
         

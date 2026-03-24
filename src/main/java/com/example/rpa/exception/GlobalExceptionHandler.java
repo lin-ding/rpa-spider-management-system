@@ -1,6 +1,8 @@
 package com.example.rpa.exception;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import java.util.HashMap;
@@ -36,6 +38,16 @@ public class GlobalExceptionHandler {
         Map<String, Object> result = new HashMap<>();
         result.put("code", 404);
         result.put("message", "请求地址不存在");
+        result.put("success", false);
+        return result;
+    }
+
+    @ExceptionHandler(SecurityException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleSecurityException(SecurityException e) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 403);
+        result.put("message", e.getMessage() != null ? e.getMessage() : "权限不足");
         result.put("success", false);
         return result;
     }

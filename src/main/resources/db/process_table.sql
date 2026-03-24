@@ -1,6 +1,6 @@
 -- 流程管理表
 CREATE TABLE IF NOT EXISTS rpa_process (
-    id BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '流程 ID',
+    id BIGINT(20) NOT NULL COMMENT '流程 ID',
     process_name VARCHAR(100) NOT NULL COMMENT '流程名称',
     process_code VARCHAR(50) NOT NULL COMMENT '流程编码',
     description VARCHAR(500) DEFAULT NULL COMMENT '流程描述',
