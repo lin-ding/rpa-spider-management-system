@@ -6,6 +6,7 @@ import com.example.rpa.entity.SysUser;
 import com.example.rpa.exception.BusinessException;
 import com.example.rpa.mapper.SysUserMapper;
 import com.example.rpa.service.SysUserService;
+import com.example.rpa.util.PasswordUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * 用户服务实现类
@@ -23,6 +26,7 @@ public class SysUserServiceImpl implements SysUserService {
 
     private final SysUserMapper sysUserMapper;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordUtil passwordUtil;
 
     @Override
     public Page<SysUser> getUserPage(Integer current, Integer size, SysUser user) {
@@ -52,6 +56,23 @@ public class SysUserServiceImpl implements SysUserService {
     public void addUser(SysUser user) {
         if (!checkUsernameUnique(user)) {
             throw new BusinessException("用户名已存在");
+        }
+        
+        // 验证密码强度
+        if (user.getPassword() != null && !user.getPassword().trim().isEmpty()) {
+            if (!passwordUtil.validatePasswordStrength(user.getPassword())) {
+                throw new BusinessException("密码强度不符合要求：" + passwordUtil.getPasswordStrengthHint());
+            }
+            // 加密密码
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        } else {
+            // 生成随机密码
+            user.setPassword(passwordEncoder.encode(passwordUtil.generateRandomPassword()));
+        }
+        
+        // 设置默认状态为启用
+        if (user.getStatus() == null) {
+            user.setStatus(1);
         }
         
         user.setCreateTime(LocalDateTime.now());
@@ -99,5 +120,31 @@ public class SysUserServiceImpl implements SysUserService {
         }
         Long count = sysUserMapper.selectCount(wrapper);
         return count == 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void toggleUserStatus(Long userId) {
+        SysUser user = getUserById(userId);
+        
+        // 切换状态：1（启用）<-> 0（禁用）
+        Integer newStatus = user.getStatus() == 1 ? 0 : 1;
+        user.setStatus(newStatus);
+        user.setUpdateTime(LocalDateTime.now());
+        
+        sysUserMapper.updateById(user);
+    }
+
+    @Override
+    public List<SysUser> searchUsersByUsername(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            throw new BusinessException("搜索关键字不能为空");
+        }
+        
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.like(SysUser::getUsername, keyword.trim());
+        wrapper.orderByDesc(SysUser::getCreateTime);
+        
+        return sysUserMapper.selectList(wrapper);
     }
 }

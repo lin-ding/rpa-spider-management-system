@@ -44,4 +44,14 @@ public interface SysUserService {
      * 检查用户名是否唯一
      */
     boolean checkUsernameUnique(SysUser user);
+
+    /**
+     * 切换用户状态（启用/禁用）
+     */
+    void toggleUserStatus(Long userId);
+
+    /**
+     * 根据用户名关键字搜索用户
+     */
+    List<SysUser> searchUsersByUsername(String keyword);
 }

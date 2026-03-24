@@ -63,8 +63,6 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    @Override
-    public void logout(String token) {}
 
     @Override
     public UserInfoVO getCurrentUserInfo(Long userId) {
@@ -79,5 +77,42 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean validateToken(String token) {
         return jwtUtil.validateToken(token);
+    }
+
+    @Override
+    public void logout(String token) {
+        // 使Token失效，加入黑名单
+        jwtUtil.invalidateToken(token);
+    }
+
+    @Override
+    public void updateUserInfo(Long userId, String realName, String email, String phone) {
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        
+        user.setRealName(realName);
+        user.setEmail(email);
+        user.setPhone(phone);
+        
+        sysUserMapper.updateById(user);
+    }
+
+    @Override
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        
+        // 验证旧密码
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new BusinessException("原密码错误");
+        }
+        
+        // 更新密码
+        user.setPassword(passwordEncoder.encode(newPassword));
+        sysUserMapper.updateById(user);
     }
 }
