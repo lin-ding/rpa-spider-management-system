@@ -34,9 +34,7 @@ public class AddUserRequest implements Serializable {
      * 密码
      */
     @NotBlank(message = "密码不能为空")
-    @Size(min = 8, max = 20, message = "密码长度必须在8-20个字符之间")
-    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{8,}$", 
-             message = "密码必须包含字母和数字，可以包含特殊字符@$!%*#?&")
+    @Size(min = 6, max = 20, message = "密码长度必须在6-20个字符之间")
     private String password;
 
     /**
@@ -62,8 +60,7 @@ public class AddUserRequest implements Serializable {
      */
     private Long deptId;
 
-    /**
-     * 角色ID列表
-     */
+    private Long roleId;
+
     private java.util.List<Long> roleIds;
 }

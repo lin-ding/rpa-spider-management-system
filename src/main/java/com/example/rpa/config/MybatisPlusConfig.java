@@ -41,6 +41,12 @@ public class MybatisPlusConfig implements MetaObjectHandler {
         // 设置全局配置
         GlobalConfig globalConfig = new GlobalConfig();
         globalConfig.setMetaObjectHandler(this);
+        
+        // 设置全局 ID 类型为自增
+        GlobalConfig.DbConfig dbConfig = new GlobalConfig.DbConfig();
+        dbConfig.setIdType(com.baomidou.mybatisplus.annotation.IdType.AUTO);
+        globalConfig.setDbConfig(dbConfig);
+        
         factoryBean.setGlobalConfig(globalConfig);
         
         // 设置分页插件

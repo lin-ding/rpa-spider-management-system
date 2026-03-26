@@ -101,6 +101,9 @@ public class SysRoleServiceImpl implements SysRoleService {
             throw new BusinessException("角色编码已存在");
         }
         
+        Long maxId = sysRoleMapper.selectMaxId();
+        role.setId(maxId + 1);
+        
         role.setCreateTime(LocalDateTime.now());
         role.setUpdateTime(LocalDateTime.now());
         role.setDeleted(0);
@@ -117,7 +120,10 @@ public class SysRoleServiceImpl implements SysRoleService {
             throw new BusinessException("角色编码已存在");
         }
         
+        Long maxId = sysRoleMapper.selectMaxId();
+        
         SysRole role = new SysRole();
+        role.setId(maxId + 1);
         role.setRoleCode(request.getRoleCode());
         role.setRoleName(request.getRoleName());
         role.setDescription(request.getDescription());
@@ -171,7 +177,7 @@ public class SysRoleServiceImpl implements SysRoleService {
             throw new BusinessException("该角色已分配给用户，无法删除");
         }
         
-        sysRoleMapper.deleteById(id);
+        sysRoleMapper.physicalDeleteById(id);
     }
 
     @Override

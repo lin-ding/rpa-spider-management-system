@@ -2,8 +2,10 @@ package com.example.rpa.service.impl;
 
 import com.example.rpa.dto.LoginRequest;
 import com.example.rpa.entity.SysUser;
+import com.example.rpa.entity.SysRole;
 import com.example.rpa.exception.BusinessException;
 import com.example.rpa.mapper.SysUserMapper;
+import com.example.rpa.mapper.SysRoleMapper;
 import com.example.rpa.service.AuthService;
 import com.example.rpa.util.JwtUtil;
 import com.example.rpa.vo.LoginResponse;
@@ -15,11 +17,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthServiceImpl implements AuthService {
     @Autowired
     private SysUserMapper sysUserMapper;
+    @Autowired
+    private SysRoleMapper sysRoleMapper;
     @Autowired
     private JwtUtil jwtUtil;
     @Autowired
@@ -50,6 +55,11 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
 
+        List<SysRole> userRoles = sysRoleMapper.selectRolesByUserId(user.getId());
+        List<String> roleCodes = userRoles.stream()
+                .map(SysRole::getRoleCode)
+                .collect(Collectors.toList());
+
         return LoginResponse.builder()
                 .token(token)
                 .tokenType("Bearer")
@@ -58,7 +68,7 @@ public class AuthServiceImpl implements AuthService {
                 .username(user.getUsername())
                 .realName(user.getRealName())
                 .avatar(user.getAvatar())
-                .roles(new ArrayList<>())
+                .roles(roleCodes)
                 .permissions(new ArrayList<>())
                 .build();
     }
