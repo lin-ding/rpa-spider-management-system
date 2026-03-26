@@ -257,7 +257,8 @@ public class SysUserServiceImpl implements SysUserService {
         sysUserMapper.updateById(existUser);
         
         Long roleId = request.getRoleId();
-        if (roleId != null) {
+        
+        if (roleId != null && roleId > 0) {
             sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
                 .eq(SysUserRole::getUserId, request.getId()));
             
@@ -270,7 +271,7 @@ public class SysUserServiceImpl implements SysUserService {
             sysUserRoleMapper.insert(userRole);
         }
         
-        if (request.getRoleIds() != null) {
+        if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
             sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
                 .eq(SysUserRole::getUserId, request.getId()));
             

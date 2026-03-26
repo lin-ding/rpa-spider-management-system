@@ -2,6 +2,7 @@ package com.example.rpa.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.rpa.dto.AddRoleRequest;
+import com.example.rpa.dto.AssignPermissionRequest;
 import com.example.rpa.dto.RoleQueryRequest;
 import com.example.rpa.dto.UpdateRoleRequest;
 import com.example.rpa.entity.SysRole;
@@ -30,4 +31,8 @@ public interface SysRoleService {
     void deleteRole(Long id);
 
     boolean checkRoleCodeUnique(SysRole role);
+
+    List<Long> getRoleResourceIds(Long roleId);
+
+    void assignPermissions(AssignPermissionRequest request);
 }

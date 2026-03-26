@@ -3,12 +3,15 @@ package com.example.rpa.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.rpa.dto.AddRoleRequest;
+import com.example.rpa.dto.AssignPermissionRequest;
 import com.example.rpa.dto.RoleQueryRequest;
 import com.example.rpa.dto.UpdateRoleRequest;
 import com.example.rpa.entity.SysRole;
+import com.example.rpa.entity.SysRoleResource;
 import com.example.rpa.entity.SysUserRole;
 import com.example.rpa.exception.BusinessException;
 import com.example.rpa.mapper.SysRoleMapper;
+import com.example.rpa.mapper.SysRoleResourceMapper;
 import com.example.rpa.mapper.SysUserRoleMapper;
 import com.example.rpa.service.SysRoleService;
 import com.example.rpa.vo.RoleListItemVO;
@@ -27,6 +30,7 @@ public class SysRoleServiceImpl implements SysRoleService {
 
     private final SysRoleMapper sysRoleMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final SysRoleResourceMapper sysRoleResourceMapper;
 
     @Override
     public Page<SysRole> getRolePage(Integer current, Integer size, SysRole role) {
@@ -189,5 +193,32 @@ public class SysRoleServiceImpl implements SysRoleService {
         }
         Long count = sysRoleMapper.selectCount(wrapper);
         return count == 0;
+    }
+
+    @Override
+    public List<Long> getRoleResourceIds(Long roleId) {
+        return sysRoleResourceMapper.selectResourceIdsByRoleId(roleId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void assignPermissions(AssignPermissionRequest request) {
+        getRoleById(request.getRoleId());
+        
+        sysRoleResourceMapper.deleteByRoleId(request.getRoleId());
+        
+        if (request.getResourceIds() != null && !request.getResourceIds().isEmpty()) {
+            Long maxId = sysRoleResourceMapper.selectMaxId();
+            long id = maxId + 1;
+            
+            for (Long resourceId : request.getResourceIds()) {
+                SysRoleResource roleResource = new SysRoleResource();
+                roleResource.setId(id++);
+                roleResource.setRoleId(request.getRoleId());
+                roleResource.setResourceId(resourceId);
+                roleResource.setCreateTime(LocalDateTime.now());
+                sysRoleResourceMapper.insert(roleResource);
+            }
+        }
     }
 }

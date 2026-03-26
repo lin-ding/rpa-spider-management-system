@@ -5,34 +5,30 @@ import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-/**
- * 流程管理实体类
- */
 @Data
-@TableName("rpa_process")
-public class RpaProcess implements Serializable {
+@TableName("sys_resource")
+public class SysResource implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private String processName;
+    private Long parentId;
 
-    private String processCode;
+    private String resourceCode;
 
-    private String description;
+    private String resourceName;
 
-    private Integer processType;
+    private String resourceType;
 
-    private String scriptContent;
+    private String url;
 
-    @TableField(updateStrategy = FieldStrategy.ALWAYS)
-    private String processData;
+    private String icon;
+
+    private Integer sort;
 
     private Integer status;
-
-    private Long createBy;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
