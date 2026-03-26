@@ -5,9 +5,11 @@ import com.example.rpa.annotation.RequireAdmin;
 import com.example.rpa.common.Result;
 import com.example.rpa.entity.RpaProcess;
 import com.example.rpa.service.RpaProcessService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/process")
 public class RpaProcessController {
@@ -27,6 +29,7 @@ public class RpaProcessController {
     @GetMapping("/{id}")
     public Result<RpaProcess> getProcessById(@PathVariable Long id) {
         RpaProcess process = rpaProcessService.getProcessById(id);
+        log.info("获取流程详情 - ID: {}, processData: {}", id, process.getProcessData());
         return Result.success(process);
     }
 
@@ -55,6 +58,7 @@ public class RpaProcessController {
     @PutMapping("/{id}/design")
     @RequireAdmin("保存流程设计")
     public Result<Void> saveProcessDesign(@PathVariable Long id, @RequestBody RpaProcess process) {
+        log.info("保存流程设计 - ID: {}, processData: {}", id, process.getProcessData());
         process.setId(id);
         rpaProcessService.updateProcess(process);
         return Result.success();

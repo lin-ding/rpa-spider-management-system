@@ -7,10 +7,12 @@ import com.example.rpa.exception.BusinessException;
 import com.example.rpa.mapper.RpaProcessMapper;
 import com.example.rpa.service.RpaProcessService;
 import com.example.rpa.util.SecurityUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+@Slf4j
 @Service
 public class RpaProcessServiceImpl implements RpaProcessService {
 
@@ -67,13 +69,17 @@ public class RpaProcessServiceImpl implements RpaProcessService {
             throw new BusinessException("流程不存在");
         }
         
-        if (!existing.getProcessCode().equals(process.getProcessCode())) {
+        log.info("更新流程 - ID: {}, processData: {}", process.getId(), process.getProcessData());
+        
+        if (StringUtils.hasText(process.getProcessCode()) 
+            && !existing.getProcessCode().equals(process.getProcessCode())) {
             if (!checkProcessCodeUnique(process)) {
                 throw new BusinessException("流程编码已存在");
             }
         }
         
-        rpaProcessMapper.updateById(process);
+        int result = rpaProcessMapper.updateById(process);
+        log.info("更新结果: {}", result);
     }
 
     @Override

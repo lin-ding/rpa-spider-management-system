@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.rpa.annotation.RequireAdmin;
 import com.example.rpa.common.Result;
 import com.example.rpa.dto.AddRoleRequest;
+import com.example.rpa.dto.AssignPermissionRequest;
 import com.example.rpa.dto.RoleQueryRequest;
 import com.example.rpa.dto.UpdateRoleRequest;
 import com.example.rpa.entity.SysRole;
@@ -90,5 +91,19 @@ public class SysRoleController {
     public Result<Boolean> checkRoleCode(SysRole role) {
         boolean unique = sysRoleService.checkRoleCodeUnique(role);
         return Result.success(unique);
+    }
+
+    @GetMapping("/{id}/resources")
+    @RequireAdmin("查询角色权限")
+    public Result<List<Long>> getRoleResources(@PathVariable Long id) {
+        List<Long> resourceIds = sysRoleService.getRoleResourceIds(id);
+        return Result.success(resourceIds);
+    }
+
+    @PostMapping("/assignPermissions")
+    @RequireAdmin("分配权限")
+    public Result<Void> assignPermissions(@Valid @RequestBody AssignPermissionRequest request) {
+        sysRoleService.assignPermissions(request);
+        return Result.success();
     }
 }
