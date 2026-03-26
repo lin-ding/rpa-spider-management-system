@@ -17,7 +17,7 @@ public class SpiderTask implements Serializable {
     /**
      * 任务 ID
      */
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**

@@ -202,11 +202,25 @@ public class SysUserServiceImpl implements SysUserService {
         
         sysUserMapper.insert(user);
         
+        Long roleId = request.getRoleId();
+        if (roleId != null) {
+            Long maxUserRoleId = sysUserRoleMapper.selectMaxId();
+            SysUserRole userRole = new SysUserRole();
+            userRole.setId(maxUserRoleId + 1);
+            userRole.setUserId(user.getId());
+            userRole.setRoleId(roleId);
+            userRole.setCreateTime(LocalDateTime.now());
+            sysUserRoleMapper.insert(userRole);
+        }
+        
         if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
-            for (Long roleId : request.getRoleIds()) {
+            Long maxUserRoleId = sysUserRoleMapper.selectMaxId();
+            long id = maxUserRoleId + 1;
+            for (Long rid : request.getRoleIds()) {
                 SysUserRole userRole = new SysUserRole();
+                userRole.setId(id++);
                 userRole.setUserId(user.getId());
-                userRole.setRoleId(roleId);
+                userRole.setRoleId(rid);
                 userRole.setCreateTime(LocalDateTime.now());
                 sysUserRoleMapper.insert(userRole);
             }
@@ -242,14 +256,31 @@ public class SysUserServiceImpl implements SysUserService {
         
         sysUserMapper.updateById(existUser);
         
+        Long roleId = request.getRoleId();
+        if (roleId != null) {
+            sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
+                .eq(SysUserRole::getUserId, request.getId()));
+            
+            Long maxUserRoleId = sysUserRoleMapper.selectMaxId();
+            SysUserRole userRole = new SysUserRole();
+            userRole.setId(maxUserRoleId + 1);
+            userRole.setUserId(request.getId());
+            userRole.setRoleId(roleId);
+            userRole.setCreateTime(LocalDateTime.now());
+            sysUserRoleMapper.insert(userRole);
+        }
+        
         if (request.getRoleIds() != null) {
             sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
                 .eq(SysUserRole::getUserId, request.getId()));
             
-            for (Long roleId : request.getRoleIds()) {
+            Long maxUserRoleId = sysUserRoleMapper.selectMaxId();
+            long id = maxUserRoleId + 1;
+            for (Long rid : request.getRoleIds()) {
                 SysUserRole userRole = new SysUserRole();
+                userRole.setId(id++);
                 userRole.setUserId(request.getId());
-                userRole.setRoleId(roleId);
+                userRole.setRoleId(rid);
                 userRole.setCreateTime(LocalDateTime.now());
                 sysUserRoleMapper.insert(userRole);
             }
@@ -265,7 +296,8 @@ public class SysUserServiceImpl implements SysUserService {
             throw new BusinessException("不能删除系统管理员账号");
         }
         
-        sysUserMapper.deleteById(id);
+        sysUserMapper.deleteUserRolesByUserId(id);
+        sysUserMapper.physicalDeleteById(id);
     }
 
     @Override

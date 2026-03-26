@@ -10,11 +10,13 @@ import com.example.rpa.entity.SysRole;
 import com.example.rpa.service.SysRoleService;
 import com.example.rpa.vo.RoleListItemVO;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/system/role")
 public class SysRoleController {
@@ -78,6 +80,7 @@ public class SysRoleController {
     @DeleteMapping("/{id}")
     @RequireAdmin("删除角色")
     public Result<Void> delete(@PathVariable Long id) {
+        log.info("删除角色请求，接收到的ID: {}", id);
         sysRoleService.deleteRole(id);
         return Result.success();
     }

@@ -5,6 +5,7 @@ import com.example.rpa.entity.SysUser;
 import com.example.rpa.exception.BusinessException;
 import com.example.rpa.mapper.SysRoleMapper;
 import com.example.rpa.mapper.SysUserMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -13,6 +14,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
+@Slf4j
 @Component
 public class SecurityUtil {
     
@@ -48,9 +50,13 @@ public class SecurityUtil {
         try {
             Long userId = getCurrentUserId();
             List<SysRole> roles = sysRoleMapper.selectRolesByUserId(userId);
-            return roles.stream()
+            log.info("用户ID: {}, 查询到的角色列表: {}", userId, roles);
+            boolean isAdmin = roles.stream()
                     .anyMatch(role -> "super_admin".equals(role.getRoleCode()));
+            log.info("用户ID: {}, 是否为管理员: {}", userId, isAdmin);
+            return isAdmin;
         } catch (Exception e) {
+            log.error("权限验证异常", e);
             return false;
         }
     }

@@ -17,7 +17,7 @@ public class SysDepartment implements Serializable {
     /**
      * 部门 ID
      */
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**

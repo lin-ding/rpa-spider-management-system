@@ -28,5 +28,7 @@ public class UpdateUserRequest implements Serializable {
 
     private Long deptId;
 
+    private Long roleId;
+
     private List<Long> roleIds;
 }

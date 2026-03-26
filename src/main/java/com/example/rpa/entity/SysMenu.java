@@ -17,7 +17,7 @@ public class SysMenu implements Serializable {
     /**
      * 菜单 ID
      */
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     /**
