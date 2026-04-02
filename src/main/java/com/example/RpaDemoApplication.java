@@ -17,6 +17,7 @@ public class RpaDemoApplication {
         System.out.println("RPA 爬虫管理系统启动成功！");
         System.out.println("接口地址：http://localhost:8080/api");
         System.out.println("====================================");
+        System.out.println("http://localhost:8080/api/doc.html ");
     }
 
 }

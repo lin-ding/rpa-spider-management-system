@@ -5,6 +5,9 @@ import com.example.rpa.common.Result;
 import com.example.rpa.entity.DataCollectionResult;
 import com.example.rpa.service.DataCollectionResultService;
 import com.example.rpa.service.impl.DataCollectionResultServiceImpl;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -21,6 +24,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/data")
+@Tag(name = "数据采集结果", description = "提供数据采集结果的分页查询、详情查看和导出接口")
 public class DataCollectionResultController {
 
     @Autowired
@@ -30,8 +34,11 @@ public class DataCollectionResultController {
     private DataCollectionResultServiceImpl dataCollectionResultServiceImpl;
 
     @GetMapping("/query")
+    @Operation(summary = "分页查询采集结果", description = "按任务、来源、分类、状态和时间范围分页查询数据采集结果")
     public Result<Page<DataCollectionResult>> getDataList(
+            @Parameter(description = "当前页码", example = "1")
             @RequestParam(defaultValue = "1") Integer current,
+            @Parameter(description = "每页条数", example = "10")
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Long taskId,
             @RequestParam(required = false) String taskName,
@@ -53,12 +60,15 @@ public class DataCollectionResultController {
     }
 
     @GetMapping("/{id}")
-    public Result<DataCollectionResult> getDataById(@PathVariable Long id) {
+    @Operation(summary = "查询采集结果详情", description = "根据采集结果主键 ID 查询单条数据详情")
+    public Result<DataCollectionResult> getDataById(@Parameter(description = "采集结果主键 ID", required = true)
+                                                    @PathVariable Long id) {
         DataCollectionResult result = dataCollectionResultService.getDataById(id);
         return Result.success(result);
     }
 
     @GetMapping("/export")
+    @Operation(summary = "导出采集结果", description = "按筛选条件导出数据采集结果为 Excel 文件")
     public void exportData(
             @RequestParam(required = false) Long taskId,
             @RequestParam(required = false) String taskName,
