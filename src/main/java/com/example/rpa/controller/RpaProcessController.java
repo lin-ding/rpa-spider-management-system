@@ -5,9 +5,12 @@ import com.example.rpa.annotation.RequireAdmin;
 import com.example.rpa.common.Result;
 import com.example.rpa.entity.RpaProcess;
 import com.example.rpa.service.RpaProcessService;
+import com.example.rpa.service.ProcessExecutionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -16,6 +19,9 @@ public class RpaProcessController {
 
     @Autowired
     private RpaProcessService rpaProcessService;
+
+    @Autowired
+    private ProcessExecutionService processExecutionService;
 
     @GetMapping("/list")
     public Result<Page<RpaProcess>> getProcessList(
@@ -64,9 +70,19 @@ public class RpaProcessController {
         return Result.success();
     }
 
+    @PostMapping("/{id}/execute")
+    public Result<Map<String, Object>> executeProcess(@PathVariable Long id) {
+        log.info("执行流程 - ID: {}", id);
+        Map<String, Object> result = processExecutionService.executeProcess(id);
+        return Result.success(result);
+    }
+
     @PostMapping("/test-script")
-    public Result<String> testProcessScript(@RequestBody RpaProcess process) {
-        return Result.success("脚本测试成功");
+    public Result<Map<String, Object>> testProcessScript(@RequestBody Map<String, String> request) {
+        String script = request.get("script");
+        log.info("测试脚本");
+        Map<String, Object> result = processExecutionService.testScript(script);
+        return Result.success(result);
     }
 
     @GetMapping("/checkProcessCode")
