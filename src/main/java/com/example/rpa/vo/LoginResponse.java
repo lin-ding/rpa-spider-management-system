@@ -50,7 +50,7 @@ public class LoginResponse {
     /**
      * 角色列表
      */
-    private List<String> roles;
+    private List<RoleInfoVO> roles;
 
     /**
      * 权限列表
