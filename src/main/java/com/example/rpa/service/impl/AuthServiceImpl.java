@@ -56,8 +56,15 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
 
         List<SysRole> userRoles = sysRoleMapper.selectRolesByUserId(user.getId());
-        List<String> roleCodes = userRoles.stream()
-                .map(SysRole::getRoleCode)
+        List<RoleInfoVO> roleInfoList = userRoles.stream()
+                .map(role -> {
+                    RoleInfoVO roleInfo = new RoleInfoVO();
+                    roleInfo.setId(role.getId());
+                    roleInfo.setRoleName(role.getRoleName());
+                    roleInfo.setRoleCode(role.getRoleCode());
+                    roleInfo.setDescription(role.getDescription());
+                    return roleInfo;
+                })
                 .collect(Collectors.toList());
 
         return LoginResponse.builder()
@@ -68,7 +75,7 @@ public class AuthServiceImpl implements AuthService {
                 .username(user.getUsername())
                 .realName(user.getRealName())
                 .avatar(user.getAvatar())
-                .roles(roleCodes)
+                .roles(roleInfoList)
                 .permissions(new ArrayList<>())
                 .build();
     }
@@ -81,7 +88,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("用户不存在");
         }
         
-        // 构建用户信息VO
         UserInfoVO userInfo = new UserInfoVO();
         userInfo.setId(user.getId());
         userInfo.setUsername(user.getUsername());
@@ -90,23 +96,19 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setPhone(user.getPhone());
         userInfo.setAvatar(user.getAvatar());
         
-        // 设置角色信息
-        List<RoleInfoVO> roles = new ArrayList<>();
-        RoleInfoVO role = new RoleInfoVO();
+        List<SysRole> userRoles = sysRoleMapper.selectRolesByUserId(userId);
+        List<RoleInfoVO> roleInfoList = userRoles.stream()
+                .map(role -> {
+                    RoleInfoVO roleInfo = new RoleInfoVO();
+                    roleInfo.setId(role.getId());
+                    roleInfo.setRoleName(role.getRoleName());
+                    roleInfo.setRoleCode(role.getRoleCode());
+                    roleInfo.setDescription(role.getDescription());
+                    return roleInfo;
+                })
+                .collect(Collectors.toList());
         
-        // 判断是否为管理员（这里假设用户名为"admin"的用户为管理员）
-        if ("admin".equals(user.getUsername())) {
-            role.setRoleName("系统管理员");
-            role.setRoleCode("admin");
-            role.setDescription("系统管理员，拥有所有权限");
-        } else {
-            role.setRoleName("普通用户");
-            role.setRoleCode("user");
-            role.setDescription("普通用户，拥有基本权限");
-        }
-        
-        roles.add(role);
-        userInfo.setRoles(roles);
+        userInfo.setRoles(roleInfoList);
         
         return userInfo;
     }

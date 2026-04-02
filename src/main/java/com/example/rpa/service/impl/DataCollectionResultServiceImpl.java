@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
+
 @Service
 public class DataCollectionResultServiceImpl implements DataCollectionResultService {
 
@@ -18,6 +20,11 @@ public class DataCollectionResultServiceImpl implements DataCollectionResultServ
 
     @Override
     public Page<DataCollectionResult> getDataPage(Integer current, Integer size, DataCollectionResult data) {
+        return getDataPage(current, size, data, null, null);
+    }
+
+    public Page<DataCollectionResult> getDataPage(Integer current, Integer size, DataCollectionResult data, 
+                                                   LocalDateTime startTime, LocalDateTime endTime) {
         Page<DataCollectionResult> page = new Page<>(current, size);
         LambdaQueryWrapper<DataCollectionResult> wrapper = new LambdaQueryWrapper<>();
         
@@ -29,6 +36,18 @@ public class DataCollectionResultServiceImpl implements DataCollectionResultServ
         }
         if (StringUtils.hasText(data.getDataSource())) {
             wrapper.like(DataCollectionResult::getDataSource, data.getDataSource());
+        }
+        if (StringUtils.hasText(data.getCategory())) {
+            wrapper.like(DataCollectionResult::getCategory, data.getCategory());
+        }
+        if (StringUtils.hasText(data.getDataStatus())) {
+            wrapper.eq(DataCollectionResult::getDataStatus, data.getDataStatus());
+        }
+        if (startTime != null) {
+            wrapper.ge(DataCollectionResult::getCollectionTime, startTime);
+        }
+        if (endTime != null) {
+            wrapper.le(DataCollectionResult::getCollectionTime, endTime);
         }
         
         wrapper.orderByDesc(DataCollectionResult::getCollectionTime);

@@ -26,6 +26,10 @@ public class DataCollectionResult implements Serializable {
 
     private LocalDateTime collectionTime;
 
+    private String category;
+
+    private String dataStatus;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }
