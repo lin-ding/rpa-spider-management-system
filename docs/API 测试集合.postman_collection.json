@@ -1,0 +1,506 @@
+{
+  "info": {
+    "name": "RPA 爬虫管理系统 API",
+    "description": "RPA 爬虫管理系统的接口测试集合",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "认证模块",
+      "item": [
+        {
+          "name": "用户登录",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.code === 200) {",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "获取用户信息",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/user/info?userId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "user", "info"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "获取菜单树",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/menu/tree?userId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "menu", "tree"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "验证 Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/token/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "token", "validate"]
+            }
+          }
+        },
+        {
+          "name": "用户登出",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "系统管理 - 用户管理",
+      "item": [
+        {
+          "name": "分页查询用户",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/user/page?current=1&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "user", "page"],
+              "query": [
+                {
+                  "key": "current",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "username",
+                  "value": "admin",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "根据 ID 查询用户",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/user/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "user", "1"]
+            }
+          }
+        },
+        {
+          "name": "新增用户",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"test\",\n  \"password\": \"test123\",\n  \"realName\": \"测试用户\",\n  \"email\": \"test@example.com\",\n  \"phone\": \"13800138000\",\n  \"status\": 1,\n  \"deptId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/system/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "user"]
+            }
+          }
+        },
+        {
+          "name": "修改用户",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 2,\n  \"username\": \"test\",\n  \"realName\": \"测试用户修改\",\n  \"email\": \"test_new@example.com\",\n  \"status\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/system/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "user"]
+            }
+          }
+        },
+        {
+          "name": "删除用户",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/user/2",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "user", "2"]
+            }
+          }
+        },
+        {
+          "name": "重置密码",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/user/resetPwd?userId=1&password=new123",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "user", "resetPwd"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                },
+                {
+                  "key": "password",
+                  "value": "new123"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "检查用户名唯一性",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/user/checkUsername?username=test",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "user", "checkUsername"],
+              "query": [
+                {
+                  "key": "username",
+                  "value": "test"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "系统管理 - 角色管理",
+      "item": [
+        {
+          "name": "分页查询角色",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/role/page?current=1&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "role", "page"],
+              "query": [
+                {
+                  "key": "current",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "查询所有角色",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/role/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "role", "all"]
+            }
+          }
+        },
+        {
+          "name": "根据 ID 查询角色",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/role/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "role", "1"]
+            }
+          }
+        },
+        {
+          "name": "新增角色",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleName\": \"测试角色\",\n  \"roleCode\": \"test_role\",\n  \"description\": \"测试角色描述\",\n  \"status\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/system/role",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "role"]
+            }
+          }
+        },
+        {
+          "name": "修改角色",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 3,\n  \"roleName\": \"测试角色修改\",\n  \"roleCode\": \"test_role\",\n  \"description\": \"修改后的描述\",\n  \"status\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/system/role",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "role"]
+            }
+          }
+        },
+        {
+          "name": "删除角色",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/role/3",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "role", "3"]
+            }
+          }
+        },
+        {
+          "name": "检查角色编码唯一性",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/role/checkRoleCode?roleCode=test_role",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "role", "checkRoleCode"],
+              "query": [
+                {
+                  "key": "roleCode",
+                  "value": "test_role"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "系统管理 - 菜单管理",
+      "item": [
+        {
+          "name": "查询菜单树",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/menu/tree",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "menu", "tree"]
+            }
+          }
+        },
+        {
+          "name": "根据 ID 查询菜单",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/menu/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "menu", "1"]
+            }
+          }
+        },
+        {
+          "name": "新增菜单",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parentId\": 1,\n  \"menuName\": \"测试菜单\",\n  \"menuType\": 2,\n  \"path\": \"/test\",\n  \"component\": \"test/index\",\n  \"permission\": \"test:list\",\n  \"icon\": \"test\",\n  \"sortOrder\": 10,\n  \"status\": 1,\n  \"visible\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/system/menu",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "menu"]
+            }
+          }
+        },
+        {
+          "name": "修改菜单",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 11,\n  \"menuName\": \"测试菜单修改\",\n  \"status\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/system/menu",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "menu"]
+            }
+          }
+        },
+        {
+          "name": "删除菜单",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/menu/11",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "menu", "11"]
+            }
+          }
+        },
+        {
+          "name": "检查菜单名称唯一性",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/system/menu/checkMenuName?menuName=测试菜单&parentId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["system", "menu", "checkMenuName"],
+              "query": [
+                {
+                  "key": "menuName",
+                  "value": "测试菜单"
+                },
+                {
+                  "key": "parentId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
