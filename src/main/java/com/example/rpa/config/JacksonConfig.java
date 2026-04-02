@@ -1,7 +1,6 @@
 package com.example.rpa.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +19,6 @@ public class JacksonConfig {
         simpleModule.addSerializer(Long.TYPE, ToStringSerializer.instance);
         
         objectMapper.registerModule(simpleModule);
-        objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
         
         return objectMapper;
     }
