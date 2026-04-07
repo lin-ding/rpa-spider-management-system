@@ -7,16 +7,16 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
- * 修改机器人请求
+ * 新增机器人请求
  */
 @Data
-public class UpdateRobotRequest {
-
-    @NotNull(message = "机器人ID不能为空")
-    private Long id;
+public class AddRobotRequest {
 
     @NotBlank(message = "机器人名称不能为空")
     private String robotName;
+
+    @NotBlank(message = "机器人编码不能为空")
+    private String robotCode;
 
     @NotNull(message = "机器人类型不能为空")
     private Integer robotType;
