@@ -63,3 +63,8 @@ knife4j:
   setting:
     language: zh_cn
     swagger-model-name: 实体类列表
+
+robot:
+  heartbeat:
+    timeout-seconds: 120
+    check-interval-ms: 30000

@@ -3,6 +3,7 @@ package com.example.rpa.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.rpa.dto.AddRobotRequest;
+import com.example.rpa.dto.RobotHeartbeatRequest;
 import com.example.rpa.dto.RobotQueryRequest;
 import com.example.rpa.dto.UpdateRobotRequest;
 import com.example.rpa.entity.RpaRobot;
@@ -12,11 +13,14 @@ import com.example.rpa.service.RobotService;
 import com.example.rpa.util.SecurityUtil;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,6 +40,9 @@ public class RobotServiceImpl implements RobotService {
     private final RobotMapper robotMapper;
     private final SecurityUtil securityUtil;
     private final ConcurrentHashMap<Long, ExecutorService> robotExecutorMap = new ConcurrentHashMap<>();
+
+    @Value("${robot.heartbeat.timeout-seconds:120}")
+    private long heartbeatTimeoutSeconds;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -147,6 +154,26 @@ public class RobotServiceImpl implements RobotService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reportHeartbeat(RobotHeartbeatRequest request) {
+        RpaRobot robot = getRobotByCode(request.getRobotCode());
+        if (safeInt(robot.getStatus()) == STATUS_DISABLED) {
+            throw new BusinessException("机器人已禁用，无法上报心跳");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        robot.setLastHeartbeatTime(now);
+        if (shouldRefreshOnlineTime(robot)) {
+            robot.setLastOnlineTime(now);
+        }
+        if (shouldRecoverToOnline(robot)) {
+            robot.setStatus(robot.getCurrentTaskId() == null ? STATUS_IDLE : STATUS_BUSY);
+        }
+        robot.setUpdateTime(now);
+        robotMapper.updateById(robot);
+    }
+
+    @Override
     public void executeTaskOnRobot(Long robotId, Long taskId, Long processId, Runnable task) {
         RpaRobot robot = getRobotById(robotId);
         int status = safeInt(robot.getStatus());
@@ -183,11 +210,42 @@ public class RobotServiceImpl implements RobotService {
         robotExecutorMap.keySet().forEach(this::recycleExecutor);
     }
 
+    @Scheduled(
+            fixedDelayString = "${robot.heartbeat.check-interval-ms:30000}",
+            initialDelayString = "${robot.heartbeat.check-interval-ms:30000}"
+    )
+    @Transactional(rollbackFor = Exception.class)
+    public void markTimeoutRobotsOffline() {
+        LocalDateTime expireBefore = LocalDateTime.now().minusSeconds(heartbeatTimeoutSeconds);
+        LambdaQueryWrapper<RpaRobot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.ne(RpaRobot::getStatus, STATUS_DISABLED)
+                .ne(RpaRobot::getStatus, STATUS_OFFLINE)
+                .lt(RpaRobot::getLastHeartbeatTime, expireBefore);
+
+        List<RpaRobot> timeoutRobots = robotMapper.selectList(wrapper);
+        for (RpaRobot robot : timeoutRobots) {
+            markRobotOffline(robot);
+        }
+    }
+
     private String trimToNull(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
         }
         return value.trim();
+    }
+
+    private RpaRobot getRobotByCode(String robotCode) {
+        if (!StringUtils.hasText(robotCode)) {
+            throw new BusinessException("机器人编码不能为空");
+        }
+        LambdaQueryWrapper<RpaRobot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(RpaRobot::getRobotCode, robotCode.trim());
+        RpaRobot robot = robotMapper.selectOne(wrapper);
+        if (robot == null) {
+            throw new BusinessException("机器人不存在");
+        }
+        return robot;
     }
 
     private ExecutorService allocateExecutor(Long robotId) {
@@ -233,6 +291,24 @@ public class RobotServiceImpl implements RobotService {
         robot.setStatus(4);
         robot.setUpdateTime(LocalDateTime.now());
         robotMapper.updateById(robot);
+    }
+
+    private void markRobotOffline(RpaRobot robot) {
+        robot.setStatus(STATUS_OFFLINE);
+        robot.setCurrentTaskId(null);
+        robot.setCurrentProcessId(null);
+        robot.setUpdateTime(LocalDateTime.now());
+        robotMapper.updateById(robot);
+    }
+
+    private boolean shouldRefreshOnlineTime(RpaRobot robot) {
+        int status = safeInt(robot.getStatus());
+        return status == STATUS_OFFLINE || status == 4 || robot.getLastOnlineTime() == null;
+    }
+
+    private boolean shouldRecoverToOnline(RpaRobot robot) {
+        int status = safeInt(robot.getStatus());
+        return status == STATUS_OFFLINE || status == 4;
     }
 
     private int safeInt(Integer value) {

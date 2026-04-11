@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.rpa.annotation.RequireAdmin;
 import com.example.rpa.common.Result;
 import com.example.rpa.dto.AddRobotRequest;
+import com.example.rpa.dto.RobotHeartbeatRequest;
 import com.example.rpa.dto.RobotQueryRequest;
 import com.example.rpa.dto.UpdateRobotRequest;
 import com.example.rpa.entity.RpaRobot;
@@ -70,5 +71,12 @@ public class RobotController {
     @Operation(summary = "查询机器人状态统计", description = "统计机器人总数、在线数、工作中数量、离线数量和运行中任务数")
     public Result<Map<String, Object>> getStatusStatistics() {
         return Result.success(robotService.getStatusStatistics());
+    }
+
+    @PostMapping("/heartbeat")
+    @Operation(summary = "机器人心跳上报", description = "机器人按编码上报心跳，刷新最后心跳时间，必要时自动恢复为在线状态")
+    public Result<Void> reportHeartbeat(@Valid @RequestBody RobotHeartbeatRequest request) {
+        robotService.reportHeartbeat(request);
+        return Result.success();
     }
 }
