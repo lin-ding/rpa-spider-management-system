@@ -1,12 +1,12 @@
 package com.example.rpa.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.example.rpa.entity.SpiderTask;
+import com.example.rpa.entity.RpaTaskStageLog;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
- * 爬虫任务 Mapper 接口
+ * 任务阶段日志 Mapper
  */
 @Mapper
-public interface SpiderTaskMapper extends BaseMapper<SpiderTask> {
+public interface RpaTaskStageLogMapper extends BaseMapper<RpaTaskStageLog> {
 }

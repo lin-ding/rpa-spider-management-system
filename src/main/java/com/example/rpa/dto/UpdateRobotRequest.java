@@ -32,4 +32,6 @@ public class UpdateRobotRequest {
     private String clientVersion;
 
     private String description;
+
+    private Integer status;
 }

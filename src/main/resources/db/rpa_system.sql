@@ -83,36 +83,6 @@ CREATE TABLE `rpa_robot` (
 
 INSERT INTO `rpa_process` VALUES (1,'股票数据采集流程','stock_collection','采集股票市场数据并存储到数据库',1,NULL,1,1,'2026-03-25 11:56:17','2026-03-25 11:56:17',0),(2,'基金净值处理流程','fund_processing','处理基金净值数据并生成报告',2,NULL,1,1,'2026-03-25 11:56:17','2026-03-25 11:56:17',0),(3,'日报自动生成流程','daily_report','自动生成每日数据采集报告',3,NULL,1,1,'2026-03-25 11:56:17','2026-03-25 11:56:17',0),(4,'汇率数据同步流程','exchange_sync','同步汇率数据到本地数据库',1,NULL,0,1,'2026-03-25 11:56:17','2026-03-25 11:56:17',0),(5,'财务报表处理流程','finance_report','处理财务报表数据',2,NULL,1,1,'2026-03-25 11:56:17','2026-03-25 11:56:17',0);
 
-#
-# Structure for table "spider_task"
-#
-
-DROP TABLE IF EXISTS `spider_task`;
-CREATE TABLE `spider_task` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '任务 ID',
-  `task_name` varchar(100) NOT NULL COMMENT '任务名称',
-  `task_code` varchar(50) NOT NULL COMMENT '任务编码',
-  `task_type` tinyint(1) DEFAULT '1' COMMENT '任务类型：1-定时任务，2-手动任务',
-  `url` varchar(500) DEFAULT NULL COMMENT '目标 URL',
-  `script_content` text COMMENT '爬虫脚本内容 (Groovy)',
-  `cron_expression` varchar(50) DEFAULT NULL COMMENT 'Cron 表达式',
-  `status` tinyint(1) DEFAULT '0' COMMENT '状态：0-停用，1-启用',
-  `last_run_time` datetime DEFAULT NULL COMMENT '上次运行时间',
-  `next_run_time` datetime DEFAULT NULL COMMENT '下次运行时间',
-  `run_count` int(11) DEFAULT '0' COMMENT '运行次数',
-  `create_by` bigint(20) DEFAULT NULL COMMENT '创建人',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  `deleted` tinyint(1) DEFAULT '0' COMMENT '逻辑删除标识：0-未删除，1-已删除',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_task_code` (`task_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=1007 DEFAULT CHARSET=utf8mb4 COMMENT='爬虫任务表';
-
-#
-# Data for table "spider_task"
-#
-
-INSERT INTO `spider_task` VALUES (1001,'股票行情采集','stock_quote',1,'https://api.example.com/stock','// 股票数据采集脚本\ndef crawl() {\n    def url = \"https://api.example.com/stock\"\n    def data = httpGet(url)\n    saveToDatabase(data)\n    return \"采集成功\"\n}','0 0 9,15 * * ?',1,'2026-03-25 09:00:00','2026-03-25 15:00:00',156,1,'2026-03-25 10:21:35','2026-03-25 10:21:35',0),(1002,'基金净值采集','fund_nav',1,'https://api.example.com/fund','// 基金净值采集脚本\ndef crawl() {\n    def url = \"https://api.example.com/fund\"\n    def data = httpGet(url)\n    processData(data)\n    return \"采集成功\"\n}','0 30 18 * * ?',1,'2026-03-24 18:30:00','2026-03-25 18:30:00',89,1,'2026-03-25 10:21:35','2026-03-25 10:21:35',0),(1003,'汇率数据采集','exchange_rate',1,'https://api.example.com/exchange','// 汇率数据采集脚本\ndef crawl() {\n    def url = \"https://api.example.com/exchange\"\n    def data = httpGet(url)\n    saveExchangeRate(data)\n    return \"采集成功\"\n}','0 0 */2 * * ?',1,'2026-03-25 08:00:00','2026-03-25 10:00:00',234,1,'2026-03-25 10:21:35','2026-03-25 10:21:35',0),(1004,'财经新闻采集','finance_news',1,'https://api.example.com/news','// 财经新闻采集脚本\ndef crawl() {\n    def url = \"https://api.example.com/news\"\n    def data = httpGet(url)\n    parseNews(data)\n    return \"采集成功\"\n}','0 0 */1 * * ?',1,'2026-03-25 09:00:00','2026-03-25 10:00:00',567,1,'2026-03-25 10:21:35','2026-03-25 10:21:35',0),(1005,'债券数据采集','bond_data',1,'https://api.example.com/bond','// 债券数据采集脚本\ndef crawl() {\n    def url = \"https://api.example.com/bond\"\n    def data = httpGet(url)\n    processBondData(data)\n    return \"采集成功\"\n}','0 0 17 * * ?',1,'2026-03-24 17:00:00','2026-03-25 17:00:00',78,1,'2026-03-25 10:21:35','2026-03-25 10:21:35',0),(1006,'银行利率采集','bank_rate',2,'https://api.example.com/bank-rate','// 银行利率采集脚本\ndef crawl() {\n    def url = \"https://api.example.com/bank-rate\"\n    def data = httpGet(url)\n    saveBankRate(data)\n    return \"采集成功\"\n}',NULL,1,'2026-03-23 14:30:00',NULL,12,1,'2026-03-25 10:21:35','2026-03-25 10:21:35',0);
 
 #
 # Structure for table "sys_department"
@@ -292,29 +262,4 @@ CREATE TABLE `sys_user_role` (
 #
 
 INSERT INTO `sys_user_role` VALUES (1,1,1,'2026-03-20 08:33:15'),(2,2,2,'2026-03-21 09:00:00'),(3,3,2,'2026-03-22 10:00:00'),(4,4,2,'2026-03-23 11:00:00'),(5,5,2,'2026-03-24 12:00:00'),(6,6,3,'2026-03-25 13:00:00'),(7,7,4,'2026-03-25 14:00:00'),(8,8,5,'2026-03-25 15:00:00'),(9,11,5,'2026-03-26 21:34:17');
-
-#
-# Structure for table "task_execution_log"
-#
-
-DROP TABLE IF EXISTS `task_execution_log`;
-CREATE TABLE `task_execution_log` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '日志 ID',
-  `task_id` bigint(20) NOT NULL COMMENT '任务 ID',
-  `task_name` varchar(100) DEFAULT NULL COMMENT '任务名称',
-  `start_time` datetime DEFAULT NULL COMMENT '开始时间',
-  `end_time` datetime DEFAULT NULL COMMENT '结束时间',
-  `duration` bigint(20) DEFAULT NULL COMMENT '执行时长 (毫秒)',
-  `status` tinyint(1) DEFAULT '0' COMMENT '执行状态：0-失败，1-成功',
-  `error_message` text COMMENT '错误信息',
-  `log_detail` text COMMENT '详细日志',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  PRIMARY KEY (`id`),
-  KEY `idx_task_id` (`task_id`),
-  KEY `idx_start_time` (`start_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务执行日志表';
-
-#
-# Data for table "task_execution_log"
-#
 

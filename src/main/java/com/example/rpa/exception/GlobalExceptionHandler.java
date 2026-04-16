@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,6 +39,16 @@ public class GlobalExceptionHandler {
         Map<String, Object> result = new HashMap<>();
         result.put("code", 404);
         result.put("message", "请求地址不存在");
+        result.put("success", false);
+        return result;
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, Object> handleNoResourceFoundException(NoResourceFoundException e) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("code", 404);
+        result.put("message", "请求地址不存在: " + e.getResourcePath());
         result.put("success", false);
         return result;
     }

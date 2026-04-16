@@ -1,38 +1,41 @@
 package com.example.rpa.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.rpa.common.Result;
+import com.example.rpa.dto.ExecutionQueryRequest;
+import com.example.rpa.service.ExecutionService;
+import com.example.rpa.vo.TaskExecutionListItemVO;
+import com.example.rpa.vo.TaskStageLogVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
-/**
- * 执行监控 Controller（临时实现）
- */
 @RestController
 @RequestMapping("/execution")
-@Tag(name = "执行监控", description = "提供流程或任务执行记录的查询入口，当前为占位实现")
+@RequiredArgsConstructor
+@Tag(name = "执行监控", description = "提供执行记录分页查询和阶段日志查看能力")
 public class ExecutionController {
 
-    /**
-     * 获取执行记录列表
-     */
+    private final ExecutionService executionService;
+
     @GetMapping("/list")
-    @Operation(summary = "分页查询执行记录", description = "分页获取任务或流程的执行记录列表，当前返回空数据")
-    public Result<Map<String, Object>> getExecutionList(
-            @Parameter(description = "当前页码", example = "1")
-            @RequestParam(defaultValue = "1") Integer current,
-            @Parameter(description = "每页条数", example = "10")
-            @RequestParam(defaultValue = "10") Integer size) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("records", new ArrayList<>());
-        result.put("total", 0);
-        result.put("current", current);
-        result.put("size", size);
-        return Result.success(result);
+    @Operation(summary = "分页查询执行记录", description = "支持按任务名称、机器人名称、状态和开始时间范围查询执行记录")
+    public Result<Page<TaskExecutionListItemVO>> getExecutionList(ExecutionQueryRequest request) {
+        return Result.success(executionService.getExecutionPage(request));
+    }
+
+    @GetMapping("/{id}/stages")
+    @Operation(summary = "查询执行阶段日志", description = "根据执行记录 ID 查询阶段日志")
+    public Result<List<TaskStageLogVO>> getExecutionStages(
+            @Parameter(description = "执行记录 ID", required = true)
+            @PathVariable Long id) {
+        return Result.success(executionService.getStageLogs(id));
     }
 }

@@ -3,7 +3,9 @@ package com.example.rpa.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.rpa.annotation.RequireAdmin;
 import com.example.rpa.common.Result;
+import com.example.rpa.dto.TestProcessScriptRequest;
 import com.example.rpa.entity.RpaProcess;
+import com.example.rpa.service.ProcessExecutionService;
 import com.example.rpa.service.RpaProcessService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,6 +22,9 @@ public class RpaProcessController {
 
     @Autowired
     private RpaProcessService rpaProcessService;
+
+    @Autowired
+    private ProcessExecutionService processExecutionService;
 
     @GetMapping("/list")
     @Operation(summary = "分页查询流程列表", description = "按流程名称、流程编码、流程类型和状态等条件分页查询流程定义列表")
@@ -82,12 +87,19 @@ public class RpaProcessController {
         return Result.success();
     }
 
+    @PostMapping("/{id}/execute")
+    @Operation(summary = "调试流程", description = "按流程主键 ID 直接调试执行流程定义，仅用于流程设计和开发调试")
+    public Result<Object> executeProcess(@Parameter(description = "流程主键 ID", required = true)
+                                         @PathVariable Long id) {
+        return Result.success(processExecutionService.executeProcess(id));
+    }
+
 
 
     @PostMapping("/test-script")
-    @Operation(summary = "测试流程脚本", description = "对提交的流程脚本进行测试，当前为占位接口，固定返回测试成功")
-    public Result<String> testProcessScript(@RequestBody RpaProcess process) {
-        return Result.success("脚本测试成功");
+    @Operation(summary = "测试流程脚本", description = "对提交的流程脚本进行真实语法检查，当前支持 Groovy 和 Python")
+    public Result<Object> testProcessScript(@RequestBody TestProcessScriptRequest request) {
+        return Result.success(processExecutionService.testScript(request.getScriptLanguage(), request.getScript()));
     }
 
     @GetMapping("/checkProcessCode")

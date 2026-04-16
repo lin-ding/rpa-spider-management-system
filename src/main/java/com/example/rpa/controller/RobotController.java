@@ -6,9 +6,12 @@ import com.example.rpa.common.Result;
 import com.example.rpa.dto.AddRobotRequest;
 import com.example.rpa.dto.RobotHeartbeatRequest;
 import com.example.rpa.dto.RobotQueryRequest;
+import com.example.rpa.dto.TaskExecutionQueryRequest;
 import com.example.rpa.dto.UpdateRobotRequest;
+import com.example.rpa.dto.UpdateRobotStatusRequest;
 import com.example.rpa.entity.RpaRobot;
 import com.example.rpa.service.RobotService;
+import com.example.rpa.vo.TaskExecutionListItemVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,6 +48,16 @@ public class RobotController {
         return Result.success();
     }
 
+    @PutMapping("/{id}/status")
+    @RequireAdmin("修改机器人状态")
+    @Operation(summary = "修改机器人状态", description = "手动修改机器人状态，执行中的机器人不允许变更状态")
+    public Result<Void> updateRobotStatus(@Parameter(description = "机器人主键 ID", required = true)
+                                          @PathVariable Long id,
+                                          @Valid @RequestBody UpdateRobotStatusRequest request) {
+        robotService.updateRobotStatus(id, request.getStatus());
+        return Result.success();
+    }
+
     @DeleteMapping("/{id}")
     @RequireAdmin("删除机器人")
     @Operation(summary = "删除机器人", description = "删除前校验机器人是否正在执行任务，满足条件后执行逻辑删除")
@@ -65,6 +78,15 @@ public class RobotController {
     @Operation(summary = "分页查询机器人列表", description = "支持按关键字和状态分页查询机器人列表")
     public Result<Page<RpaRobot>> getRobotList(RobotQueryRequest request) {
         return Result.success(robotService.getRobotPage(request));
+    }
+
+    @GetMapping("/{id}/execution-records")
+    @Operation(summary = "查询机器人执行记录", description = "根据机器人主键 ID 分页查询任务执行历史")
+    public Result<Page<TaskExecutionListItemVO>> getRobotExecutionRecords(
+            @Parameter(description = "机器人主键 ID", required = true)
+            @PathVariable Long id,
+            TaskExecutionQueryRequest request) {
+        return Result.success(robotService.getRobotExecutionPage(id, request));
     }
 
     @GetMapping("/status-statistics")
