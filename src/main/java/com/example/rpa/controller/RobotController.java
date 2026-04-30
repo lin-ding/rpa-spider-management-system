@@ -1,7 +1,7 @@
 package com.example.rpa.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.example.rpa.annotation.RequireAdmin;
+import com.example.rpa.annotation.RequirePermission;
 import com.example.rpa.common.Result;
 import com.example.rpa.dto.AddRobotRequest;
 import com.example.rpa.dto.RobotHeartbeatRequest;
@@ -30,7 +30,7 @@ public class RobotController {
     private final RobotService robotService;
 
     @PostMapping
-    @RequireAdmin("新增机器人")
+    @RequirePermission(value = "robot:add", description = "新增机器人")
     @Operation(summary = "新增机器人", description = "新增机器人并校验编码唯一性，初始化状态为离线")
     public Result<Void> addRobot(@Valid @RequestBody AddRobotRequest request) {
         robotService.addRobot(request);
@@ -38,7 +38,7 @@ public class RobotController {
     }
 
     @PutMapping("/{id}")
-    @RequireAdmin("修改机器人")
+    @RequirePermission(value = "robot:edit", description = "修改机器人")
     @Operation(summary = "修改机器人", description = "按机器人 ID 修改名称、类型、IP、端口和描述等信息")
     public Result<Void> updateRobot(@Parameter(description = "机器人主键 ID", required = true)
                                     @PathVariable Long id,
@@ -49,7 +49,7 @@ public class RobotController {
     }
 
     @PutMapping("/{id}/status")
-    @RequireAdmin("修改机器人状态")
+    @RequirePermission(value = "robot:edit", description = "修改机器人状态")
     @Operation(summary = "修改机器人状态", description = "手动修改机器人状态，执行中的机器人不允许变更状态")
     public Result<Void> updateRobotStatus(@Parameter(description = "机器人主键 ID", required = true)
                                           @PathVariable Long id,
@@ -59,7 +59,7 @@ public class RobotController {
     }
 
     @DeleteMapping("/{id}")
-    @RequireAdmin("删除机器人")
+    @RequirePermission(value = "robot:delete", description = "删除机器人")
     @Operation(summary = "删除机器人", description = "删除前校验机器人是否正在执行任务，满足条件后执行逻辑删除")
     public Result<Void> deleteRobot(@Parameter(description = "机器人主键 ID", required = true)
                                     @PathVariable Long id) {
@@ -100,5 +100,11 @@ public class RobotController {
     public Result<Void> reportHeartbeat(@Valid @RequestBody RobotHeartbeatRequest request) {
         robotService.reportHeartbeat(request);
         return Result.success();
+    }
+
+    @PostMapping("/heartbeat/all")
+    @Operation(summary = "批量刷新机器人心跳", description = "刷新所有非禁用机器人的最后心跳时间，离线或异常机器人自动恢复为在线状态")
+    public Result<Map<String, Object>> reportAllHeartbeats() {
+        return Result.success(robotService.reportAllHeartbeats());
     }
 }

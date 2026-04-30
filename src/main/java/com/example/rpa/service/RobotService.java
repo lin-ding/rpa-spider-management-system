@@ -33,7 +33,11 @@ public interface RobotService {
 
     void reportHeartbeat(RobotHeartbeatRequest request);
 
+    Map<String, Object> reportAllHeartbeats();
+
     boolean executeTaskOnRobot(Long robotId, Long taskId, Long processId, Runnable task);
 
     boolean cancelQueuedTask(Long robotId, Long taskId);
+
+    boolean cancelTaskExecution(Long robotId, Long taskId);
 }

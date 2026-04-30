@@ -1,4 +1,4 @@
--- 当前系统数据库初始化脚本
+﻿-- 当前系统数据库初始化脚本
 -- 适用范围：
 -- 1. 当前仍在使用的 15 张表
 -- 2. 包含基础建表语句
@@ -400,13 +400,30 @@ INSERT INTO `sys_resource` (`id`, `parent_id`, `resource_code`, `resource_name`,
 (7, 2, 'user:delete', '删除用户', 'button', NULL, NULL, 3, 1),
 (8, 3, 'role:add', '新增角色', 'button', NULL, NULL, 1, 1),
 (9, 3, 'role:edit', '编辑角色', 'button', NULL, NULL, 2, 1),
-(10, 3, 'role:delete', '删除角色', 'button', NULL, NULL, 3, 1);
+(10, 3, 'role:delete', '删除角色', 'button', NULL, NULL, 3, 1),
+(11, 3, 'role:permission', '分配权限', 'button', NULL, NULL, 4, 1),
+(12, 4, 'resource:add', '新增资源', 'button', NULL, NULL, 1, 1),
+(13, 4, 'resource:edit', '编辑资源', 'button', NULL, NULL, 2, 1),
+(14, 4, 'resource:delete', '删除资源', 'button', NULL, NULL, 3, 1),
+(15, NULL, 'process', '流程管理', 'menu', '/process', 'Operation', 1, 1),
+(16, 15, 'process:add', '新增流程', 'button', NULL, NULL, 1, 1),
+(17, 15, 'process:edit', '编辑流程', 'button', NULL, NULL, 2, 1),
+(18, 15, 'process:delete', '删除流程', 'button', NULL, NULL, 3, 1),
+(19, NULL, 'robot', '机器人管理', 'menu', '/robot', 'Monitor', 1, 1),
+(20, 19, 'robot:add', '新增机器人', 'button', NULL, NULL, 1, 1),
+(21, 19, 'robot:edit', '编辑机器人', 'button', NULL, NULL, 2, 1),
+(22, 19, 'robot:delete', '删除机器人', 'button', NULL, NULL, 3, 1),
+(23, NULL, 'task', '任务管理', 'menu', '/task', 'List', 1, 1),
+(24, 23, 'task:add', '新增任务', 'button', NULL, NULL, 1, 1),
+(25, 23, 'task:edit', '编辑任务', 'button', NULL, NULL, 2, 1),
+(26, 23, 'task:execute', '执行任务', 'button', NULL, NULL, 3, 1),
+(27, 23, 'task:delete', '删除任务', 'button', NULL, NULL, 4, 1);
 
 -- 角色资源
 INSERT INTO `sys_role_resource` (`id`, `role_id`, `resource_id`) VALUES
-(1, 1, 1), (2, 1, 2), (3, 1, 3), (4, 1, 4), (5, 1, 5), (6, 1, 6), (7, 1, 7), (8, 1, 8), (9, 1, 9), (10, 1, 10),
-(11, 2, 1), (12, 2, 2), (13, 2, 3),
-(14, 3, 1);
+(1, 1, 1), (2, 1, 2), (3, 1, 3), (4, 1, 4), (5, 1, 5), (6, 1, 6), (7, 1, 7), (8, 1, 8), (9, 1, 9), (10, 1, 10), (11, 1, 11), (12, 1, 12), (13, 1, 13), (14, 1, 14), (15, 1, 15), (16, 1, 16), (17, 1, 17), (18, 1, 18), (19, 1, 19), (20, 1, 20), (21, 1, 21), (22, 1, 22), (23, 1, 23), (24, 1, 24), (25, 1, 25), (26, 1, 26), (27, 1, 27),
+(28, 2, 1), (29, 2, 2), (30, 2, 3),
+(31, 3, 1);
 
 -- 流程
 INSERT INTO `rpa_process` (`id`, `process_name`, `process_code`, `description`, `process_type`, `script_content`, `process_data`, `status`, `create_by`) VALUES

@@ -1,6 +1,7 @@
 package com.example.rpa.aspect;
 
 import com.example.rpa.annotation.RequireAdmin;
+import com.example.rpa.annotation.RequirePermission;
 import com.example.rpa.exception.BusinessException;
 import com.example.rpa.util.SecurityUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * 权限验证切面
@@ -42,10 +46,39 @@ public class PermissionAspect {
         
         if (!securityUtil.isAdmin()) {
             log.warn("权限拒绝 - 非管理员尝试访问: {}", methodName);
-            throw new BusinessException("权限不足：" + permissionDesc);
+            throw new BusinessException(403, "权限不足：" + permissionDesc);
         }
         
         log.info("权限验证通过 - 方法: {}", methodName);
+        return joinPoint.proceed();
+    }
+
+    /**
+     * 拦截所有标注了 @RequirePermission 注解的方法
+     */
+    @Around("@annotation(com.example.rpa.annotation.RequirePermission)")
+    public Object checkResourcePermission(ProceedingJoinPoint joinPoint) throws Throwable {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+        RequirePermission requirePermission = method.getAnnotation(RequirePermission.class);
+
+        List<String> resourceCodes = new ArrayList<>();
+        if (requirePermission.anyOf().length > 0) {
+            resourceCodes.addAll(Arrays.asList(requirePermission.anyOf()));
+        } else {
+            resourceCodes.add(requirePermission.value());
+        }
+        String permissionDesc = requirePermission.description();
+        String methodName = method.getDeclaringClass().getSimpleName() + "." + method.getName();
+
+        log.info("资源权限验证 - 方法: {}, 资源: {}, 描述: {}", methodName, resourceCodes, permissionDesc);
+
+        if (!securityUtil.hasAnyPermission(resourceCodes)) {
+            log.warn("权限拒绝 - 缺少资源权限: {}, 方法: {}", resourceCodes, methodName);
+            throw new BusinessException(403, "权限不足：" + permissionDesc);
+        }
+
+        log.info("资源权限验证通过 - 方法: {}", methodName);
         return joinPoint.proceed();
     }
 }

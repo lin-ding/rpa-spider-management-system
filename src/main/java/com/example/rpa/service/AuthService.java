@@ -4,6 +4,7 @@ import com.example.rpa.dto.LoginRequest;
 import com.example.rpa.vo.LoginResponse;
 import com.example.rpa.vo.MenuTreeVO;
 import com.example.rpa.vo.UserInfoVO;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -41,6 +42,11 @@ public interface AuthService {
      * 修改个人信息
      */
     void updateUserInfo(Long userId, String realName, String email, String phone);
+
+    /**
+     * 上传并更新当前用户头像
+     */
+    String updateAvatar(Long userId, MultipartFile file);
 
     /**
      * 修改密码

@@ -3,6 +3,7 @@ package com.example.rpa.service.impl;
 import com.example.rpa.entity.RpaProcess;
 import com.example.rpa.exception.BusinessException;
 import com.example.rpa.mapper.RpaProcessMapper;
+import com.example.rpa.service.BrowserCrawlerService;
 import com.example.rpa.service.ProcessExecutionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import groovy.lang.Binding;
@@ -43,6 +44,9 @@ public class ProcessExecutionServiceImpl implements ProcessExecutionService {
     
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private BrowserCrawlerService browserCrawlerService;
 
     @Override
     public Map<String, Object> executeProcess(Long processId) {
@@ -155,7 +159,6 @@ public class ProcessExecutionServiceImpl implements ProcessExecutionService {
             default -> throw new BusinessException("暂不支持的脚本语言: " + normalizedLanguage);
         };
     }
-
     private Map<String, Object> executeGroovyStage(String script, Map<String, Object> context) {
         Map<String, Object> result = new HashMap<>();
         
@@ -170,18 +173,24 @@ public class ProcessExecutionServiceImpl implements ProcessExecutionService {
             
             binding.setVariable("log", log);
             binding.setVariable("result", result);
+            binding.setVariable("crawler", browserCrawlerService);
             
             GroovyShell shell = new GroovyShell(binding);
             Object executionResult = shell.evaluate(script);
-            
+
             if (executionResult != null) {
                 if (executionResult instanceof Map) {
                     result.putAll((Map<String, Object>) executionResult);
                 } else {
                     result.put("returnValue", executionResult);
                 }
+            } else {
+                log.warn("脚本执行返回了 null。请检查脚本最后一行是否是 return 语句。"
+                        + " 如果最后一行是 log.info() 或其他无返回值的方法调用，脚本将返回 null。"
+                        + " 脚本前 120 字符: {}", script.substring(0, Math.min(120, script.length())));
+                result.put("_warning", "脚本未返回任何数据，请确保脚本以 return [key: value] 结尾");
             }
-            
+
             result.put("stageSuccess", true);
             
         } catch (Exception e) {
@@ -252,6 +261,7 @@ public class ProcessExecutionServiceImpl implements ProcessExecutionService {
     private void validatePythonSyntax(String script) {
         Path wrapperPath = null;
         try {
+            assertNotLikelyGroovyWhenPython(script);
             wrapperPath = Files.createTempFile("rpa-python-syntax-", ".py");
             Files.writeString(wrapperPath, buildPythonWrapper(script, true), StandardCharsets.UTF_8);
             Process process = new ProcessBuilder("python", "-m", "py_compile", wrapperPath.toString())
@@ -308,6 +318,7 @@ public class ProcessExecutionServiceImpl implements ProcessExecutionService {
         Path wrapperPath = null;
         Path contextPath = null;
         try {
+            assertNotLikelyGroovyWhenPython(script);
             wrapperPath = Files.createTempFile("rpa-python-stage-", ".py");
             contextPath = Files.createTempFile("rpa-python-context-", ".json");
             Files.writeString(wrapperPath, buildPythonWrapper(script, false), StandardCharsets.UTF_8);
@@ -342,6 +353,25 @@ public class ProcessExecutionServiceImpl implements ProcessExecutionService {
             deleteCompiledPythonArtifact(wrapperPath);
             deleteTempFile(contextPath);
         }
+    }
+
+    private void assertNotLikelyGroovyWhenPython(String script) {
+        if (!StringUtils.hasText(script)) {
+            return;
+        }
+        if (isLikelyGroovyScript(script)) {
+            throw new BusinessException("当前阶段脚本语言为 Python，但脚本内容看起来是 Groovy。请检查阶段的 scriptLanguage 配置，或把脚本改为合法 Python 语法。");
+        }
+    }
+
+    private boolean isLikelyGroovyScript(String script) {
+        String normalized = script.replace("\r\n", "\n");
+        return normalized.contains("?:")
+                || normalized.contains("?.")
+                || normalized.contains("result.put(")
+                || normalized.contains("new URL(")
+                || normalized.matches("(?s).*\\bdef\\s+\\w+\\s*=.*")
+                || normalized.matches("(?s).*\\breturn\\s*\\[[^\\]]*:\\s*.*");
     }
 
     private String buildPythonWrapper(String script, boolean syntaxOnly) {

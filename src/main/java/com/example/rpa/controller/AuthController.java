@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -60,8 +61,7 @@ public class AuthController {
     @Operation(summary = "获取当前用户信息", description = "根据请求头中的 Token 解析当前登录用户，并返回个人基础信息")
     public Result<UserInfoVO> getUserInfo(@Parameter(description = "Bearer Token，格式为 Bearer 空格加令牌字符串", required = true)
                                           @RequestHeader("Authorization") String token) {
-        // 从token中解析userId
-        Long userId = jwtUtil.getUserIdFromToken(token.replace("Bearer ", ""));
+        Long userId = resolveValidatedUserId(token);
         UserInfoVO userInfo = authService.getCurrentUserInfo(userId);
         return Result.success(userInfo);
     }
@@ -73,8 +73,7 @@ public class AuthController {
     @Operation(summary = "获取当前用户菜单树", description = "根据当前登录用户查询其可访问的菜单树结构，用于前端动态菜单渲染")
     public Result<List<MenuTreeVO>> getMenuTree(@Parameter(description = "Bearer Token，格式为 Bearer 空格加令牌字符串", required = true)
                                                 @RequestHeader("Authorization") String token) {
-        // 从token中解析userId
-        Long userId = jwtUtil.getUserIdFromToken(token.replace("Bearer ", ""));
+        Long userId = resolveValidatedUserId(token);
         List<MenuTreeVO> menuTree = authService.getMenuTree(userId);
         return Result.success(menuTree);
     }
@@ -98,10 +97,23 @@ public class AuthController {
     public Result<Void> updateUserInfo(@Parameter(description = "Bearer Token，格式为 Bearer 空格加令牌字符串", required = true)
                                        @RequestHeader("Authorization") String token,
                                        @Valid @RequestBody UpdateUserInfoRequest request) {
-        // 从token中解析userId
-        Long userId = jwtUtil.getUserIdFromToken(token.replace("Bearer ", ""));
+        Long userId = resolveValidatedUserId(token);
         authService.updateUserInfo(userId, request.getRealName(), request.getEmail(), request.getPhone());
         return Result.success();
+    }
+
+    /**
+     * 上传当前用户头像
+     */
+    @PostMapping("/avatar")
+    @Operation(summary = "上传个人头像", description = "上传当前登录用户头像，支持 JPG、PNG、GIF、WEBP，最大 2MB")
+    public Result<String> uploadAvatar(@Parameter(description = "Bearer Token，格式为 Bearer 空格加令牌字符串", required = true)
+                                       @RequestHeader("Authorization") String token,
+                                       @Parameter(description = "头像文件", required = true)
+                                       @RequestParam("file") MultipartFile file) {
+        Long userId = resolveValidatedUserId(token);
+        String avatarUrl = authService.updateAvatar(userId, file);
+        return Result.success(avatarUrl);
     }
 
     /**
@@ -112,9 +124,16 @@ public class AuthController {
     public Result<Void> changePassword(@Parameter(description = "Bearer Token，格式为 Bearer 空格加令牌字符串", required = true)
                                        @RequestHeader("Authorization") String token,
                                        @Valid @RequestBody ChangePasswordRequest request) {
-        // 从token中解析userId
-        Long userId = jwtUtil.getUserIdFromToken(token.replace("Bearer ", ""));
+        Long userId = resolveValidatedUserId(token);
         authService.changePassword(userId, request.getOldPassword(), request.getNewPassword());
         return Result.success();
+    }
+
+    private Long resolveValidatedUserId(String authorizationHeader) {
+        String token = authorizationHeader.replace("Bearer ", "");
+        if (!authService.validateToken(token)) {
+            throw new com.example.rpa.exception.BusinessException(401, "登录已过期或无效，请重新登录");
+        }
+        return jwtUtil.getUserIdFromToken(token);
     }
 }

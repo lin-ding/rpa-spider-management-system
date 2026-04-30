@@ -7,12 +7,14 @@ import com.example.rpa.dto.AddTaskRequest;
 import com.example.rpa.dto.TaskExecutionQueryRequest;
 import com.example.rpa.dto.TaskQueryRequest;
 import com.example.rpa.dto.UpdateTaskRequest;
+import com.example.rpa.entity.DataCollectionResult;
 import com.example.rpa.entity.RpaProcess;
 import com.example.rpa.entity.RpaRobot;
 import com.example.rpa.entity.RpaTask;
 import com.example.rpa.entity.RpaTaskExecution;
 import com.example.rpa.entity.RpaTaskStageLog;
 import com.example.rpa.exception.BusinessException;
+import com.example.rpa.mapper.DataCollectionResultMapper;
 import com.example.rpa.mapper.RobotMapper;
 import com.example.rpa.mapper.RpaProcessMapper;
 import com.example.rpa.mapper.RpaTaskMapper;
@@ -27,14 +29,22 @@ import com.example.rpa.vo.TaskExecutionListItemVO;
 import com.example.rpa.vo.TaskListItemVO;
 import com.example.rpa.vo.TaskStageLogVO;
 import com.example.rpa.vo.TaskStatisticsVO;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -62,15 +72,22 @@ public class TaskServiceImpl implements TaskService {
     private static final String EXECUTION_STATUS_SUCCESS = "success";
     private static final String EXECUTION_STATUS_FAILED = "failed";
     private static final String TRIGGER_TYPE_MANUAL = "manual";
+    private static final int STAGE_RESULT_PREVIEW_LIMIT = 4000;
+    private static final int STAGE_RESULT_STORAGE_LIMIT = 60000;
+    private static final List<String> COLLECTION_RESULT_KEYS = List.of(
+            "collectionResults", "dataCollectionResults", "collectedData", "dataResults", "dataContent"
+    );
 
     private final RpaTaskMapper rpaTaskMapper;
     private final RpaTaskExecutionMapper rpaTaskExecutionMapper;
     private final RpaTaskStageLogMapper rpaTaskStageLogMapper;
+    private final DataCollectionResultMapper dataCollectionResultMapper;
     private final RpaProcessMapper rpaProcessMapper;
     private final RobotMapper robotMapper;
     private final RobotService robotService;
     private final ProcessExecutionService processExecutionService;
     private final SecurityUtil securityUtil;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -204,7 +221,12 @@ public class TaskServiceImpl implements TaskService {
         RpaTaskExecution latestExecution = getLatestExecution(task.getId());
 
         if (isExecutionRunning(latestExecution)) {
-            throw new BusinessException("任务已开始执行，暂不支持取消");
+            boolean cancelled = robotService.cancelTaskExecution(task.getRobotId(), task.getId());
+            if (!cancelled) {
+                throw new BusinessException("任务取消失败，当前任务可能已结束或不在本节点执行");
+            }
+            markExecutionCancelled(latestExecution.getId(), task.getId(), "用户请求取消执行中任务");
+            return;
         }
 
         if (!isTaskCancelable(task, latestExecution)) {
@@ -222,7 +244,7 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException("任务已开始执行，暂不支持取消");
         }
 
-        markExecutionCancelled(latestExecution.getId(), task.getId(), "用户取消排队");
+        markExecutionCancelled(latestExecution.getId(), task.getId(), "用户取消排队任务");
         releaseRobotIfStale(robot, task.getId());
     }
 
@@ -458,9 +480,120 @@ public class TaskServiceImpl implements TaskService {
             stageLog.setDurationMs(asLong(stageMap.get("durationMs")));
             stageLog.setErrorMessage(trimToNull(asString(stageMap.get("errorMessage"))));
             stageLog.setLogDetail(trimToNull(asString(stageMap.get("logDetail"))));
-            stageLog.setStageResult(trimToNull(asString(stageMap.get("stageResult"))));
+            stageLog.setStageResult(trimToNull(summarizeStageResult(stageMap.get("stageResult"))));
             rpaTaskStageLogMapper.insert(stageLog);
         }
+    }
+
+    private String summarizeStageResult(Object rawStageResult) {
+        if (rawStageResult == null) {
+            return null;
+        }
+
+        Object normalized = rawStageResult;
+        if (rawStageResult instanceof String rawText && StringUtils.hasText(rawText)) {
+            normalized = parseJsonObject(rawText).<Object>map(value -> value).orElse(rawText);
+        }
+
+        Object summarized = summarizeValueForStageLog(normalized);
+        String serialized = writeStageResultJson(summarized);
+        if (!StringUtils.hasText(serialized)) {
+            return trimStageResult(String.valueOf(rawStageResult));
+        }
+        return trimStageResult(serialized);
+    }
+
+    private Object summarizeValueForStageLog(Object value) {
+        if (value instanceof Map<?, ?> mapValue) {
+            Map<String, Object> summary = new java.util.LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : mapValue.entrySet()) {
+                String key = String.valueOf(entry.getKey());
+                summary.put(key, summarizeLeafForStageLog(entry.getValue()));
+            }
+            return summary;
+        }
+        if (value instanceof List<?> listValue) {
+            List<Object> summary = new ArrayList<>();
+            int limit = Math.min(listValue.size(), 20);
+            for (int index = 0; index < limit; index++) {
+                summary.add(summarizeLeafForStageLog(listValue.get(index)));
+            }
+            if (listValue.size() > limit) {
+                summary.add("...(+" + (listValue.size() - limit) + " items)");
+            }
+            return summary;
+        }
+        return summarizeLeafForStageLog(value);
+    }
+
+    private Object summarizeLeafForStageLog(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Map<?, ?> nestedMap) {
+            Map<String, Object> meta = new java.util.LinkedHashMap<>();
+            meta.put("_type", "object");
+            meta.put("keyCount", nestedMap.size());
+            return meta;
+        }
+        if (value instanceof List<?> nestedList) {
+            Map<String, Object> meta = new java.util.LinkedHashMap<>();
+            meta.put("_type", "array");
+            meta.put("size", nestedList.size());
+            if (!nestedList.isEmpty()) {
+                meta.put("firstItem", summarizeLeafForStageLog(nestedList.get(0)));
+            }
+            return meta;
+        }
+        if (value instanceof CharSequence chars) {
+            return previewText(chars.toString());
+        }
+        return value;
+    }
+
+    private String previewText(String text) {
+        String normalized = text == null ? "" : text.trim();
+        if (!StringUtils.hasText(normalized)) {
+            return normalized;
+        }
+
+        int originalLength = normalized.length();
+        String collapsed = normalized.replaceAll("\\s+", " ");
+        if (collapsed.length() <= STAGE_RESULT_PREVIEW_LIMIT && originalLength == collapsed.length()) {
+            return collapsed;
+        }
+
+        int previewLength = Math.min(collapsed.length(), STAGE_RESULT_PREVIEW_LIMIT);
+        String preview = collapsed.substring(0, previewLength);
+        if (collapsed.length() > STAGE_RESULT_PREVIEW_LIMIT) {
+            preview += "...(truncated, length=" + originalLength + ")";
+        } else if (originalLength != collapsed.length()) {
+            preview += " ...(normalized whitespace, length=" + originalLength + ")";
+        }
+        return preview;
+    }
+
+    private String writeStageResultJson(Object value) {
+        try {
+            if (value instanceof String text) {
+                return text;
+            }
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            log.warn("序列化阶段日志摘要失败", e);
+            return null;
+        }
+    }
+
+    private String trimStageResult(String stageResult) {
+        if (!StringUtils.hasText(stageResult)) {
+            return stageResult;
+        }
+        if (stageResult.length() <= STAGE_RESULT_STORAGE_LIMIT) {
+            return stageResult;
+        }
+        return stageResult.substring(0, STAGE_RESULT_STORAGE_LIMIT)
+                + "...(truncated for storage, length=" + stageResult.length() + ")";
     }
 
     private void validateTaskCanExecute(RpaTask task) {
@@ -524,8 +657,10 @@ public class TaskServiceImpl implements TaskService {
             boolean success = Boolean.TRUE.equals(result.get("success"));
             String message = stringifyResultMessage(result);
             if (success) {
+                persistCollectionResults(task, process, robot, getExecutionById(executionId), result, null, null);
                 markExecutionSuccess(executionId, task.getId(), startTime, message);
             } else {
+                persistCollectionResults(task, process, robot, getExecutionById(executionId), result, "failed", message);
                 markExecutionFailed(executionId, task.getId(), message, startTime);
             }
         } catch (Exception e) {
@@ -564,6 +699,269 @@ public class TaskServiceImpl implements TaskService {
     private String stringifyResultMessage(Map<String, Object> result) {
         Object message = result.get("message");
         return message == null ? null : String.valueOf(message);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void persistCollectionResults(RpaTask task,
+                                          RpaProcess process,
+                                          RpaRobot robot,
+                                          RpaTaskExecution execution,
+                                          Map<String, Object> processResult,
+                                          String forcedDataStatus,
+                                          String forcedErrorMessage) {
+        List<CollectionPayload> payloads = new ArrayList<>();
+        Object contextObj = processResult.get("context");
+        if (contextObj instanceof Map<?, ?> contextMap) {
+            collectPayloads((Map<String, Object>) contextMap, payloads);
+        }
+
+        Object stageResultsObj = processResult.get("stageResults");
+        if (stageResultsObj instanceof List<?> stageResults) {
+            for (Object stageResultObj : stageResults) {
+                if (!(stageResultObj instanceof Map<?, ?> stageResultMap)) {
+                    continue;
+                }
+                Object rawStageResult = stageResultMap.get("stageResult");
+                if (rawStageResult == null) {
+                    continue;
+                }
+                parseJsonObject(rawStageResult).ifPresent(stageData -> collectPayloads(stageData, payloads));
+            }
+            if (payloads.isEmpty()) {
+                collectFallbackStagePayload(stageResults, process, payloads);
+            }
+        }
+
+        if (payloads.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime collectionTime = LocalDateTime.now();
+        Set<String> persistedSignatures = new java.util.HashSet<>();
+        for (CollectionPayload payload : payloads) {
+            String dataSource = resolveDataSource(payload.sourceMap(), process);
+            String rawContent = resolvePayloadJson(payload, "rawContent", payload.content());
+            String dataContent = resolvePayloadJson(payload, "dataContent", payload.content());
+            String businessKey = resolvePayloadString(payload, "businessKey");
+            String contentHash = resolvePayloadString(payload, "contentHash", sha256(dataContent));
+            DataQualityResult qualityResult = evaluateDataQuality(task.getId(), process.getId(), businessKey, contentHash, dataContent);
+            String signature = dataSource + "\n" + dataContent;
+            if (!persistedSignatures.add(signature)) {
+                continue;
+            }
+            DataCollectionResult result = new DataCollectionResult();
+            result.setTaskId(task.getId());
+            result.setTaskCode(task.getTaskCode());
+            result.setTaskName(task.getTaskName());
+            result.setExecutionId(execution.getId());
+            result.setExecutionNo(execution.getExecutionNo());
+            result.setProcessId(process.getId());
+            result.setProcessCode(process.getProcessCode());
+            result.setProcessName(process.getProcessName());
+            result.setRobotId(robot.getId());
+            result.setRobotCode(robot.getRobotCode());
+            result.setRobotName(robot.getRobotName());
+            result.setDataSource(dataSource);
+            result.setDataType(resolvePayloadString(payload, "dataType"));
+            result.setBusinessKey(businessKey);
+            result.setRawContent(rawContent);
+            result.setFilePath(trimToNull(asString(payload.sourceMap().get("filePath"))));
+            result.setDataContent(dataContent);
+            result.setProcessedContent(resolvePayloadJson(payload, "processedContent", null));
+            result.setDataStatus(resolvePersistedDataStatus(payload, qualityResult, forcedDataStatus));
+            result.setErrorMessage(resolvePersistedErrorMessage(payload, qualityResult, forcedErrorMessage));
+            result.setSourceTime(resolvePayloadTime(payload, "sourceTime"));
+            result.setContentHash(contentHash);
+            result.setDeleted(0);
+            result.setCollectionTime(collectionTime);
+            dataCollectionResultMapper.insert(result);
+        }
+    }
+
+    private String resolvePersistedDataStatus(CollectionPayload payload,
+                                             DataQualityResult qualityResult,
+                                             String forcedDataStatus) {
+        String normalizedForcedStatus = trimToNull(forcedDataStatus);
+        if (normalizedForcedStatus != null) {
+            return normalizedForcedStatus;
+        }
+        return resolvePayloadString(payload, "dataStatus", qualityResult.dataStatus());
+    }
+
+    private String resolvePersistedErrorMessage(CollectionPayload payload,
+                                               DataQualityResult qualityResult,
+                                               String forcedErrorMessage) {
+        String normalizedForcedMessage = trimToNull(forcedErrorMessage);
+        if (normalizedForcedMessage != null) {
+            return normalizedForcedMessage;
+        }
+        return resolvePayloadString(payload, "errorMessage", qualityResult.errorMessage());
+    }
+
+    private DataQualityResult evaluateDataQuality(Long taskId, Long processId, String businessKey, String contentHash, String dataContent) {
+        if (!StringUtils.hasText(dataContent)) {
+            return new DataQualityResult("invalid", "采集结果内容为空");
+        }
+        if (hasDuplicateData(taskId, processId, businessKey, contentHash)) {
+            return new DataQualityResult("duplicate", "检测到重复数据");
+        }
+        return new DataQualityResult("raw", null);
+    }
+
+    private boolean hasDuplicateData(Long taskId, Long processId, String businessKey, String contentHash) {
+        LambdaQueryWrapper<DataCollectionResult> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DataCollectionResult::getTaskId, taskId)
+                .eq(DataCollectionResult::getProcessId, processId)
+                .eq(DataCollectionResult::getDeleted, 0)
+                .and(condition -> {
+                    boolean hasBusinessKey = StringUtils.hasText(businessKey);
+                    boolean hasContentHash = StringUtils.hasText(contentHash);
+                    if (hasBusinessKey) {
+                        condition.eq(DataCollectionResult::getBusinessKey, businessKey);
+                    }
+                    if (hasBusinessKey && hasContentHash) {
+                        condition.or();
+                    }
+                    if (hasContentHash) {
+                        condition.eq(DataCollectionResult::getContentHash, contentHash);
+                    }
+                });
+        if (!StringUtils.hasText(businessKey) && !StringUtils.hasText(contentHash)) {
+            return false;
+        }
+        return dataCollectionResultMapper.selectCount(wrapper) > 0;
+    }
+
+    private void collectFallbackStagePayload(List<?> stageResults, RpaProcess process, List<CollectionPayload> payloads) {
+        for (int index = stageResults.size() - 1; index >= 0; index--) {
+            Object stageResultObj = stageResults.get(index);
+            if (!(stageResultObj instanceof Map<?, ?> stageResultMap)) {
+                continue;
+            }
+            if (!"success".equalsIgnoreCase(asString(stageResultMap.get("status")))) {
+                continue;
+            }
+            Object rawStageResult = stageResultMap.get("stageResult");
+            if (rawStageResult == null || !StringUtils.hasText(asString(rawStageResult))) {
+                continue;
+            }
+
+            Map<String, Object> sourceMap = new java.util.LinkedHashMap<>();
+            sourceMap.put("dataSource", trimToNull(asString(stageResultMap.get("stageName"))));
+            sourceMap.put("dataType", "stage_result");
+            sourceMap.put("businessKey", process.getProcessCode() + ":stage:" + stageResultMap.get("stageOrder"));
+
+            Object content = parseJsonObject(rawStageResult)
+                    .map(value -> (Object) value)
+                    .orElse(rawStageResult);
+            payloads.add(new CollectionPayload(sourceMap, content));
+            return;
+        }
+    }
+
+    private void collectPayloads(Map<String, Object> sourceMap, List<CollectionPayload> payloads) {
+        for (String key : COLLECTION_RESULT_KEYS) {
+            if (!sourceMap.containsKey(key)) {
+                continue;
+            }
+            Object value = sourceMap.get(key);
+            if (value instanceof List<?> list) {
+                for (Object item : list) {
+                    payloads.add(new CollectionPayload(sourceMap, item));
+                }
+            } else {
+                payloads.add(new CollectionPayload(sourceMap, value));
+            }
+        }
+    }
+
+    private String resolveDataSource(Map<String, Object> sourceMap, RpaProcess process) {
+        String dataSource = trimToNull(asString(sourceMap.get("dataSource")));
+        if (dataSource != null) {
+            return dataSource;
+        }
+        dataSource = trimToNull(asString(sourceMap.get("source")));
+        return dataSource != null ? dataSource : process.getProcessName();
+    }
+
+    private String resolvePayloadString(CollectionPayload payload, String key) {
+        return resolvePayloadString(payload, key, null);
+    }
+
+    private String resolvePayloadString(CollectionPayload payload, String key, String defaultValue) {
+        Object value = extractPayloadValue(payload, key);
+        String text = trimToNull(asString(value));
+        return text == null ? defaultValue : text;
+    }
+
+    private String resolvePayloadJson(CollectionPayload payload, String key, Object defaultValue) {
+        Object value = extractPayloadValue(payload, key);
+        if (value == null) {
+            value = defaultValue;
+        }
+        return toDataContent(value);
+    }
+
+    private LocalDateTime resolvePayloadTime(CollectionPayload payload, String key) {
+        Object value = extractPayloadValue(payload, key);
+        return asLocalDateTime(value);
+    }
+
+    private Object extractPayloadValue(CollectionPayload payload, String key) {
+        if (payload.content() instanceof Map<?, ?> contentMap && contentMap.containsKey(key)) {
+            return contentMap.get(key);
+        }
+        return payload.sourceMap().get(key);
+    }
+
+    private String toDataContent(Object content) {
+        if (content == null) {
+            return null;
+        }
+        if (content instanceof String string) {
+            return string;
+        }
+        try {
+            return objectMapper.writeValueAsString(content);
+        } catch (JsonProcessingException e) {
+            return String.valueOf(content);
+        }
+    }
+
+    private String sha256(String content) {
+        if (!StringUtils.hasText(content)) {
+            return null;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(hash.length * 2);
+            for (byte item : hash) {
+                builder.append(String.format("%02x", item));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return null;
+        }
+    }
+
+    private java.util.Optional<Map<String, Object>> parseJsonObject(Object rawStageResult) {
+        if (!(rawStageResult instanceof String text) || !StringUtils.hasText(text)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.of(objectMapper.readValue(text, new TypeReference<>() {
+            }));
+        } catch (JsonProcessingException e) {
+            log.debug("阶段结果不是 JSON 对象，跳过采集结果提取");
+            return java.util.Optional.empty();
+        }
+    }
+
+    private record CollectionPayload(Map<String, Object> sourceMap, Object content) {
+    }
+
+    private record DataQualityResult(String dataStatus, String errorMessage) {
     }
 
     private void markExecutionRunning(Long executionId, Long taskId, LocalDateTime startTime) {
@@ -871,6 +1269,18 @@ public class TaskServiceImpl implements TaskService {
     private LocalDateTime asLocalDateTime(Object value) {
         if (value instanceof LocalDateTime dateTime) {
             return dateTime;
+        }
+        if (value instanceof String string && StringUtils.hasText(string)) {
+            String text = string.trim();
+            try {
+                return LocalDateTime.parse(text);
+            } catch (DateTimeParseException ignored) {
+                try {
+                    return LocalDateTime.parse(text, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                } catch (DateTimeParseException ignoredAgain) {
+                    return null;
+                }
+            }
         }
         return null;
     }

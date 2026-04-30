@@ -14,6 +14,7 @@ import com.example.rpa.mapper.SysRoleMapper;
 import com.example.rpa.mapper.SysUserMapper;
 import com.example.rpa.mapper.SysUserRoleMapper;
 import com.example.rpa.service.SysUserService;
+import com.example.rpa.util.SecurityUtil;
 import com.example.rpa.util.PasswordUtil;
 import com.example.rpa.vo.UserDetailVO;
 import com.example.rpa.vo.UserListItemVO;
@@ -25,9 +26,10 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +40,7 @@ public class SysUserServiceImpl implements SysUserService {
     private final PasswordUtil passwordUtil;
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRoleMapper sysRoleMapper;
+    private final SecurityUtil securityUtil;
 
     @Override
     public Page<SysUser> getUserPage(Integer current, Integer size, SysUser user) {
@@ -201,30 +204,9 @@ public class SysUserServiceImpl implements SysUserService {
         user.setDeleted(0);
         
         sysUserMapper.insert(user);
-        
-        Long roleId = request.getRoleId();
-        if (roleId != null) {
-            Long maxUserRoleId = sysUserRoleMapper.selectMaxId();
-            SysUserRole userRole = new SysUserRole();
-            userRole.setId(maxUserRoleId + 1);
-            userRole.setUserId(user.getId());
-            userRole.setRoleId(roleId);
-            userRole.setCreateTime(LocalDateTime.now());
-            sysUserRoleMapper.insert(userRole);
-        }
-        
-        if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
-            Long maxUserRoleId = sysUserRoleMapper.selectMaxId();
-            long id = maxUserRoleId + 1;
-            for (Long rid : request.getRoleIds()) {
-                SysUserRole userRole = new SysUserRole();
-                userRole.setId(id++);
-                userRole.setUserId(user.getId());
-                userRole.setRoleId(rid);
-                userRole.setCreateTime(LocalDateTime.now());
-                sysUserRoleMapper.insert(userRole);
-            }
-        }
+
+        List<Long> roleIds = resolveRoleIds(request.getRoleId(), request.getRoleIds());
+        insertUserRoles(user.getId(), roleIds);
     }
 
     @Override
@@ -249,6 +231,7 @@ public class SysUserServiceImpl implements SysUserService {
         existUser.setEmail(request.getEmail());
         existUser.setPhone(request.getPhone());
         if (request.getStatus() != null) {
+            ensureSuperAdminUserEnabled(existUser.getId(), request.getStatus());
             existUser.setStatus(request.getStatus());
         }
         existUser.setDeptId(request.getDeptId());
@@ -256,35 +239,12 @@ public class SysUserServiceImpl implements SysUserService {
         
         sysUserMapper.updateById(existUser);
         
-        Long roleId = request.getRoleId();
-        
-        if (roleId != null && roleId > 0) {
+        List<Long> roleIds = resolveRoleIds(request.getRoleId(), request.getRoleIds());
+        if (!roleIds.isEmpty()) {
+            ensureSuperAdminRolePreserved(request.getId(), roleIds);
             sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
                 .eq(SysUserRole::getUserId, request.getId()));
-            
-            Long maxUserRoleId = sysUserRoleMapper.selectMaxId();
-            SysUserRole userRole = new SysUserRole();
-            userRole.setId(maxUserRoleId + 1);
-            userRole.setUserId(request.getId());
-            userRole.setRoleId(roleId);
-            userRole.setCreateTime(LocalDateTime.now());
-            sysUserRoleMapper.insert(userRole);
-        }
-        
-        if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
-            sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
-                .eq(SysUserRole::getUserId, request.getId()));
-            
-            Long maxUserRoleId = sysUserRoleMapper.selectMaxId();
-            long id = maxUserRoleId + 1;
-            for (Long rid : request.getRoleIds()) {
-                SysUserRole userRole = new SysUserRole();
-                userRole.setId(id++);
-                userRole.setUserId(request.getId());
-                userRole.setRoleId(rid);
-                userRole.setCreateTime(LocalDateTime.now());
-                sysUserRoleMapper.insert(userRole);
-            }
+            insertUserRoles(request.getId(), roleIds);
         }
     }
 
@@ -293,7 +253,7 @@ public class SysUserServiceImpl implements SysUserService {
     public void deleteUser(Long id) {
         SysUser user = getUserById(id);
         
-        if ("admin".equals(user.getUsername())) {
+        if ("admin".equals(user.getUsername()) || hasSuperAdminRole(id)) {
             throw new BusinessException("不能删除系统管理员账号");
         }
         
@@ -349,6 +309,7 @@ public class SysUserServiceImpl implements SysUserService {
         
         // 切换状态：1（启用）<-> 0（禁用）
         Integer newStatus = user.getStatus() == 1 ? 0 : 1;
+        ensureSuperAdminUserEnabled(userId, newStatus);
         user.setStatus(newStatus);
         user.setUpdateTime(LocalDateTime.now());
         
@@ -366,5 +327,73 @@ public class SysUserServiceImpl implements SysUserService {
         wrapper.orderByDesc(SysUser::getCreateTime);
         
         return sysUserMapper.selectList(wrapper);
+    }
+
+    private List<Long> resolveRoleIds(Long roleId, List<Long> roleIds) {
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        if (roleId != null && roleId > 0) {
+            ids.add(roleId);
+        }
+        if (roleIds != null) {
+            roleIds.stream()
+                    .filter(id -> id != null && id > 0)
+                    .forEach(ids::add);
+        }
+        if (ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<SysRole> roles = sysRoleMapper.selectBatchIds(ids);
+        Set<Long> activeRoleIds = roles.stream()
+                .filter(role -> role.getStatus() != null && role.getStatus() == 1)
+                .map(SysRole::getId)
+                .collect(Collectors.toSet());
+        if (activeRoleIds.size() != ids.size()) {
+            LinkedHashSet<Long> invalidIds = new LinkedHashSet<>(ids);
+            invalidIds.removeAll(activeRoleIds);
+            throw new BusinessException("角色不存在或已禁用：" + invalidIds);
+        }
+
+        boolean includesSuperAdmin = roles.stream()
+                .anyMatch(role -> "super_admin".equals(role.getRoleCode()));
+        if (includesSuperAdmin && !securityUtil.isAdmin()) {
+            throw new BusinessException(403, "只有超级管理员可以分配超级管理员角色");
+        }
+
+        return new ArrayList<>(ids);
+    }
+
+    private void insertUserRoles(Long userId, List<Long> roleIds) {
+        for (Long roleId : roleIds) {
+            SysUserRole userRole = new SysUserRole();
+            userRole.setUserId(userId);
+            userRole.setRoleId(roleId);
+            userRole.setCreateTime(LocalDateTime.now());
+            sysUserRoleMapper.insert(userRole);
+        }
+    }
+
+    private void ensureSuperAdminUserEnabled(Long userId, Integer nextStatus) {
+        if (nextStatus != null && nextStatus == 0 && hasSuperAdminRole(userId)) {
+            throw new BusinessException("不能禁用超级管理员账号");
+        }
+    }
+
+    private void ensureSuperAdminRolePreserved(Long userId, List<Long> nextRoleIds) {
+        if (!hasSuperAdminRole(userId)) {
+            return;
+        }
+
+        List<SysRole> nextRoles = sysRoleMapper.selectBatchIds(nextRoleIds);
+        boolean keepsSuperAdmin = nextRoles.stream()
+                .anyMatch(role -> "super_admin".equals(role.getRoleCode()));
+        if (!keepsSuperAdmin) {
+            throw new BusinessException("不能移除超级管理员账号的超级管理员角色");
+        }
+    }
+
+    private boolean hasSuperAdminRole(Long userId) {
+        return sysRoleMapper.selectRolesByUserId(userId).stream()
+                .anyMatch(role -> "super_admin".equals(role.getRoleCode()));
     }
 }

@@ -1,9 +1,15 @@
 package com.example.rpa.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.example.rpa.annotation.RequireAdmin;
+import com.example.rpa.annotation.RequirePermission;
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
 import com.example.rpa.common.Result;
+import com.example.rpa.dto.GenerateScriptRequest;
+import com.example.rpa.dto.GenerateStagesRequest;
 import com.example.rpa.dto.TestProcessScriptRequest;
+import com.example.rpa.service.impl.AiScriptGenerationService;
 import com.example.rpa.entity.RpaProcess;
 import com.example.rpa.service.ProcessExecutionService;
 import com.example.rpa.service.RpaProcessService;
@@ -22,6 +28,9 @@ public class RpaProcessController {
 
     @Autowired
     private RpaProcessService rpaProcessService;
+
+    @Autowired
+    private AiScriptGenerationService aiScriptGenerationService;
 
     @Autowired
     private ProcessExecutionService processExecutionService;
@@ -48,7 +57,7 @@ public class RpaProcessController {
     }
 
     @PostMapping
-    @RequireAdmin("创建流程")
+    @RequirePermission(value = "process:add", description = "新增流程")
     @Operation(summary = "新增流程", description = "新增一条流程定义，保存流程基础信息、脚本内容和启用状态")
     public Result<Void> addProcess(@RequestBody RpaProcess process) {
         rpaProcessService.addProcess(process);
@@ -56,7 +65,7 @@ public class RpaProcessController {
     }
 
     @PutMapping("/{id}")
-    @RequireAdmin("修改流程")
+    @RequirePermission(value = "process:edit", description = "修改流程")
     @Operation(summary = "修改流程", description = "根据流程主键 ID 更新流程基础信息、脚本内容、设计数据和状态")
     public Result<Void> updateProcess(@Parameter(description = "流程主键 ID", required = true)
                                       @PathVariable Long id,
@@ -67,7 +76,7 @@ public class RpaProcessController {
     }
 
     @DeleteMapping("/{id}")
-    @RequireAdmin("删除流程")
+    @RequirePermission(value = "process:delete", description = "删除流程")
     @Operation(summary = "删除流程", description = "根据流程主键 ID 删除流程定义")
     public Result<Void> deleteProcess(@Parameter(description = "流程主键 ID", required = true)
                                       @PathVariable Long id) {
@@ -76,7 +85,7 @@ public class RpaProcessController {
     }
 
     @PutMapping("/{id}/design")
-    @RequireAdmin("保存流程设计")
+    @RequirePermission(value = "process:edit", description = "保存流程设计")
     @Operation(summary = "保存流程设计", description = "保存流程设计页提交的四步流程设计数据")
     public Result<Void> saveProcessDesign(@Parameter(description = "流程主键 ID", required = true)
                                           @PathVariable Long id,
@@ -95,6 +104,23 @@ public class RpaProcessController {
     }
 
 
+
+    @PostMapping("/generate-stages")
+    @RequirePermission(value = "process:edit", description = "AI 智能设计")
+    @Operation(summary = "AI 智能设计流程", description = "通过自然语言描述需求，由 AI 生成完整的四阶段采集流程（采集→解析→加工→落库）")
+    public Result<List<Map<String, Object>>> generateStages(@Valid @RequestBody GenerateStagesRequest request) {
+        List<Map<String, Object>> stages = aiScriptGenerationService.generateStages(request.getPrompt());
+        return Result.success(stages);
+    }
+
+    @PostMapping("/generate-script")
+    @RequirePermission(value = "process:edit", description = "AI 生成脚本")
+    @Operation(summary = "AI 生成脚本", description = "通过自然语言描述需求，由 AI 生成对应的 Groovy 或 Python 采集脚本")
+    public Result<String> generateScript(@Valid @RequestBody GenerateScriptRequest request) {
+        String script = aiScriptGenerationService.generate(
+                request.getPrompt(), request.getScriptLanguage(), request.getStageName());
+        return Result.success(script);
+    }
 
     @PostMapping("/test-script")
     @Operation(summary = "测试流程脚本", description = "对提交的流程脚本进行真实语法检查，当前支持 Groovy 和 Python")

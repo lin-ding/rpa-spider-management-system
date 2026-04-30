@@ -1,7 +1,7 @@
 package com.example.rpa.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.example.rpa.annotation.RequireAdmin;
+import com.example.rpa.annotation.RequirePermission;
 import com.example.rpa.dto.AddResourceRequest;
 import com.example.rpa.dto.QueryResourceRequest;
 import com.example.rpa.dto.UpdateResourceRequest;
@@ -27,7 +27,7 @@ public class SysResourceController {
     private SysResourceService sysResourceService;
 
     @GetMapping("/query")
-    @RequireAdmin("查询资源列表")
+    @RequirePermission(anyOf = {"resource", "resource:add", "resource:edit", "resource:delete", "role:permission"}, description = "查询资源列表")
     @Operation(summary = "分页查询资源列表", description = "按条件分页查询资源数据，并返回资源列表项分页结果")
     public Result<Page<ResourceListItemVO>> queryResourceList(QueryResourceRequest request) {
         Page<ResourceListItemVO> page = sysResourceService.queryResourceList(request);
@@ -35,7 +35,7 @@ public class SysResourceController {
     }
 
     @GetMapping("/{id}")
-    @RequireAdmin("查询资源详情")
+    @RequirePermission(anyOf = {"resource", "resource:add", "resource:edit", "resource:delete"}, description = "查询资源详情")
     @Operation(summary = "查询资源详情", description = "根据资源主键 ID 查询资源详细信息")
     public Result<SysResource> getResourceById(@Parameter(description = "资源主键 ID", required = true)
                                                @PathVariable Long id) {
@@ -44,7 +44,7 @@ public class SysResourceController {
     }
 
     @GetMapping("/parents")
-    @RequireAdmin("查询父级资源")
+    @RequirePermission(anyOf = {"resource", "resource:add", "resource:edit"}, description = "查询父级资源")
     @Operation(summary = "查询父级资源列表", description = "查询可作为父级节点的资源列表，用于新增或编辑资源时选择上级资源")
     public Result<List<SysResource>> getParentResources() {
         List<SysResource> parents = sysResourceService.getParentResources();
@@ -52,7 +52,7 @@ public class SysResourceController {
     }
 
     @PostMapping
-    @RequireAdmin("新增资源")
+    @RequirePermission(value = "resource:add", description = "新增资源")
     @Operation(summary = "新增资源", description = "新增菜单、按钮或接口资源信息")
     public Result<Void> addResource(@Valid @RequestBody AddResourceRequest request) {
         sysResourceService.addResource(request);
@@ -60,7 +60,7 @@ public class SysResourceController {
     }
 
     @PutMapping
-    @RequireAdmin("修改资源")
+    @RequirePermission(value = "resource:edit", description = "修改资源")
     @Operation(summary = "修改资源", description = "根据请求体中的资源 ID 修改资源信息")
     public Result<Void> updateResource(@Valid @RequestBody UpdateResourceRequest request) {
         sysResourceService.updateResource(request);
@@ -68,7 +68,7 @@ public class SysResourceController {
     }
 
     @PutMapping("/{id}")
-    @RequireAdmin("修改资源")
+    @RequirePermission(value = "resource:edit", description = "修改资源")
     @Operation(summary = "按路径修改资源", description = "根据路径中的资源 ID 修改资源信息，适用于 REST 风格更新接口")
     public Result<Void> updateResourceById(@Parameter(description = "资源主键 ID", required = true)
                                            @PathVariable Long id,
@@ -79,7 +79,7 @@ public class SysResourceController {
     }
 
     @DeleteMapping("/{id}")
-    @RequireAdmin("删除资源")
+    @RequirePermission(value = "resource:delete", description = "删除资源")
     @Operation(summary = "删除资源", description = "根据资源主键 ID 删除资源信息")
     public Result<Void> deleteResource(@Parameter(description = "资源主键 ID", required = true)
                                        @PathVariable Long id) {

@@ -15,9 +15,18 @@ public interface SysRoleResourceMapper extends BaseMapper<SysRoleResource> {
     @Select("SELECT IFNULL(MAX(id), 0) FROM sys_role_resource")
     Long selectMaxId();
 
-    @Select("SELECT resource_id FROM sys_role_resource WHERE role_id = #{roleId}")
+    @Select("""
+            SELECT rr.resource_id
+            FROM sys_role_resource rr
+            INNER JOIN sys_resource r ON rr.resource_id = r.id
+            WHERE rr.role_id = #{roleId}
+              AND r.deleted = 0
+            """)
     List<Long> selectResourceIdsByRoleId(@Param("roleId") Long roleId);
 
     @Delete("DELETE FROM sys_role_resource WHERE role_id = #{roleId}")
     int deleteByRoleId(@Param("roleId") Long roleId);
+
+    @Delete("DELETE FROM sys_role_resource WHERE resource_id = #{resourceId}")
+    int deleteByResourceId(@Param("resourceId") Long resourceId);
 }

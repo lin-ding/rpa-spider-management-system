@@ -212,7 +212,49 @@ public class RobotServiceImpl implements RobotService {
             throw new BusinessException("机器人已禁用，无法上报心跳");
         }
 
+        refreshRobotHeartbeat(robot, LocalDateTime.now());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> reportAllHeartbeats() {
+        reconcileRobotOccupancy();
+        List<RpaRobot> robots = robotMapper.selectList(new LambdaQueryWrapper<RpaRobot>()
+                .ne(RpaRobot::getStatus, STATUS_DISABLED));
+
         LocalDateTime now = LocalDateTime.now();
+        int idle = 0;
+        int busy = 0;
+        int errorRecovered = 0;
+        int offlineRecovered = 0;
+        for (RpaRobot robot : robots) {
+            int beforeStatus = safeInt(robot.getStatus());
+            refreshRobotHeartbeat(robot, now);
+            int afterStatus = safeInt(robot.getStatus());
+            if (beforeStatus == STATUS_OFFLINE) {
+                offlineRecovered++;
+            }
+            if (beforeStatus == STATUS_ERROR) {
+                errorRecovered++;
+            }
+            if (afterStatus == STATUS_IDLE) {
+                idle++;
+            } else if (afterStatus == STATUS_BUSY) {
+                busy++;
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", robots.size());
+        result.put("refreshed", robots.size());
+        result.put("idle", idle);
+        result.put("busy", busy);
+        result.put("offlineRecovered", offlineRecovered);
+        result.put("errorRecovered", errorRecovered);
+        return result;
+    }
+
+    private void refreshRobotHeartbeat(RpaRobot robot, LocalDateTime now) {
         robot.setLastHeartbeatTime(now);
         if (shouldRefreshOnlineTime(robot)) {
             // 离线或异常后的首次有效心跳，刷新最近在线时间。
@@ -281,6 +323,20 @@ public class RobotServiceImpl implements RobotService {
         if (cancelled) {
             executor.remove((Runnable) future);
             queuedTaskFutureMap.remove(taskId);
+        }
+        return cancelled;
+    }
+
+    @Override
+    public boolean cancelTaskExecution(Long robotId, Long taskId) {
+        Future<?> future = queuedTaskFutureMap.get(taskId);
+        if (future == null) {
+            return false;
+        }
+        boolean cancelled = future.cancel(true);
+        if (cancelled) {
+            queuedTaskFutureMap.remove(taskId);
+            recoverRobotStatus(robotId);
         }
         return cancelled;
     }

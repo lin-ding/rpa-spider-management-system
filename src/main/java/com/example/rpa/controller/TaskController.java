@@ -1,7 +1,7 @@
 package com.example.rpa.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.example.rpa.annotation.RequireAdmin;
+import com.example.rpa.annotation.RequirePermission;
 import com.example.rpa.common.Result;
 import com.example.rpa.dto.AddTaskRequest;
 import com.example.rpa.dto.TaskExecutionQueryRequest;
@@ -67,7 +67,7 @@ public class TaskController {
     }
 
     @PostMapping
-    @RequireAdmin("新增任务")
+    @RequirePermission(value = "task:add", description = "新增任务")
     @Operation(summary = "新增任务", description = "新增任务配置，并校验任务编码唯一、流程启用和机器人可绑定")
     public Result<Void> addTask(@Valid @RequestBody AddTaskRequest request) {
         taskService.addTask(request);
@@ -75,7 +75,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    @RequireAdmin("编辑任务")
+    @RequirePermission(value = "task:edit", description = "编辑任务")
     @Operation(summary = "编辑任务", description = "更新任务基础信息，执行中的任务不允许编辑")
     public Result<Void> updateTask(@Parameter(description = "任务主键 ID", required = true)
                                    @PathVariable Long id,
@@ -85,7 +85,7 @@ public class TaskController {
     }
 
     @PostMapping("/{id}/execute")
-    @RequireAdmin("启动任务执行")
+    @RequirePermission(value = "task:execute", description = "启动任务执行")
     @Operation(summary = "启动任务执行", description = "创建执行记录并提交到机器人执行流程")
     public Result<Void> executeTask(@Parameter(description = "任务主键 ID", required = true)
                                     @PathVariable Long id) {
@@ -94,7 +94,7 @@ public class TaskController {
     }
 
     @PostMapping("/{id}/cancel")
-    @RequireAdmin("取消任务排队")
+    @RequirePermission(value = "task:execute", description = "取消任务排队")
     @Operation(summary = "取消任务排队", description = "取消待执行或排队中的任务执行，执行中的任务暂不支持取消")
     public Result<Void> cancelTaskExecution(@Parameter(description = "任务主键 ID", required = true)
                                             @PathVariable Long id) {
@@ -103,7 +103,7 @@ public class TaskController {
     }
 
     @PostMapping("/{id}/retry")
-    @RequireAdmin("重试任务执行")
+    @RequirePermission(value = "task:execute", description = "重试任务执行")
     @Operation(summary = "重试任务执行", description = "仅允许最近一次执行失败且当前未排队/未执行中的任务重试")
     public Result<Void> retryTaskExecution(@Parameter(description = "任务主键 ID", required = true)
                                            @PathVariable Long id) {
@@ -112,7 +112,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    @RequireAdmin("删除任务")
+    @RequirePermission(value = "task:delete", description = "删除任务")
     @Operation(summary = "删除任务", description = "逻辑删除任务，若任务正在执行则不允许删除")
     public Result<Void> deleteTask(@Parameter(description = "任务主键 ID", required = true)
                                    @PathVariable Long id) {

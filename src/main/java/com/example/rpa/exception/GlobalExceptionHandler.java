@@ -1,6 +1,7 @@
 package com.example.rpa.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -13,12 +14,17 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public Map<String, Object> handleBusinessException(BusinessException e) {
+    public ResponseEntity<Map<String, Object>> handleBusinessException(BusinessException e) {
         Map<String, Object> result = new HashMap<>();
         result.put("code", e.getCode());
         result.put("message", e.getMessage());
         result.put("success", false);
-        return result;
+        HttpStatus status = switch (e.getCode()) {
+            case 401 -> HttpStatus.UNAUTHORIZED;
+            case 403 -> HttpStatus.FORBIDDEN;
+            default -> HttpStatus.OK;
+        };
+        return ResponseEntity.status(status).body(result);
     }
 
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)

@@ -2,6 +2,7 @@ package com.example.rpa.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -20,6 +21,7 @@ public class AddResourceRequest implements Serializable {
     private String resourceName;
 
     @NotBlank(message = "资源类型不能为空")
+    @Pattern(regexp = "^(menu|button|api)$", message = "资源类型只能是 menu、button 或 api")
     private String resourceType;
 
     private String url;

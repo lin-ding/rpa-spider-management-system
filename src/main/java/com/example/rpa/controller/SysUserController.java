@@ -2,6 +2,7 @@ package com.example.rpa.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.rpa.annotation.RequireAdmin;
+import com.example.rpa.annotation.RequirePermission;
 import com.example.rpa.common.Result;
 import com.example.rpa.dto.AddUserRequest;
 import com.example.rpa.dto.ResetPasswordRequest;
@@ -34,7 +35,7 @@ public class SysUserController {
     private SecurityUtil securityUtil;
 
     @GetMapping("/list")
-    @RequireAdmin("查询用户列表")
+    @RequirePermission(anyOf = {"user", "user:add", "user:edit", "user:delete"}, description = "查询用户列表")
     @Operation(summary = "分页查询用户列表", description = "分页查询用户基础信息，并按统一列表结构返回记录和分页信息")
     public Result<UserListVO<SysUser>> getUserList(
             @Parameter(description = "当前页码", example = "1")
@@ -55,7 +56,7 @@ public class SysUserController {
     }
 
     @GetMapping("/page")
-    @RequireAdmin("查询用户列表")
+    @RequirePermission(anyOf = {"user", "user:add", "user:edit", "user:delete"}, description = "查询用户列表")
     @Operation(summary = "分页查询用户 Page 对象", description = "分页查询用户基础信息，并直接返回 MyBatis-Plus 的分页对象")
     public Result<Page<SysUser>> getUserPage(
             @Parameter(description = "当前页码", example = "1")
@@ -68,7 +69,7 @@ public class SysUserController {
     }
 
     @GetMapping("/query")
-    @RequireAdmin("查询用户列表")
+    @RequirePermission(anyOf = {"user", "user:add", "user:edit", "user:delete"}, description = "查询用户列表")
     @Operation(summary = "分页查询用户及角色信息", description = "分页查询用户列表，并附带每个用户关联的角色信息")
     public Result<Page<UserListItemVO>> queryUserList(UserQueryRequest request) {
         Page<UserListItemVO> page = sysUserService.getUserPageWithRoles(request);
@@ -76,6 +77,7 @@ public class SysUserController {
     }
 
     @GetMapping("/{id}")
+    @RequirePermission(anyOf = {"user", "user:add", "user:edit", "user:delete"}, description = "查询用户基础信息")
     @Operation(summary = "查询用户基础信息", description = "根据用户主键 ID 查询用户基础信息")
     public Result<SysUser> getUserById(@Parameter(description = "用户主键 ID", required = true)
                                        @PathVariable Long id) {
@@ -84,7 +86,7 @@ public class SysUserController {
     }
 
     @GetMapping("/{id}/detail")
-    @RequireAdmin("查看用户详情")
+    @RequirePermission(anyOf = {"user", "user:add", "user:edit", "user:delete"}, description = "查看用户详情")
     @Operation(summary = "查询用户详情", description = "根据用户主键 ID 查询用户详情，并返回其关联角色信息")
     public Result<UserDetailVO> getUserDetail(@Parameter(description = "用户主键 ID", required = true)
                                               @PathVariable Long id) {
@@ -93,7 +95,7 @@ public class SysUserController {
     }
 
     @PostMapping
-    @RequireAdmin("新增用户")
+    @RequirePermission(value = "user:add", description = "新增用户")
     @Operation(summary = "新增用户", description = "新增一个系统用户，并可同步分配单个角色或多个角色")
     public Result<Void> add(@Valid @RequestBody AddUserRequest request) {
         sysUserService.addUser(request);
@@ -101,7 +103,7 @@ public class SysUserController {
     }
 
     @PutMapping
-    @RequireAdmin("修改用户")
+    @RequirePermission(value = "user:edit", description = "修改用户")
     @Operation(summary = "修改用户", description = "根据请求体中的用户 ID 修改用户资料、状态和角色分配信息")
     public Result<Void> update(@Valid @RequestBody UpdateUserRequest request) {
         sysUserService.updateUser(request);
@@ -109,7 +111,7 @@ public class SysUserController {
     }
 
     @PutMapping("/{id}")
-    @RequireAdmin("修改用户")
+    @RequirePermission(value = "user:edit", description = "修改用户")
     @Operation(summary = "按路径修改用户", description = "根据路径中的用户 ID 修改用户信息，适用于 REST 风格更新接口")
     public Result<Void> updateById(@Parameter(description = "用户主键 ID", required = true)
                                    @PathVariable Long id,
@@ -120,7 +122,7 @@ public class SysUserController {
     }
 
     @DeleteMapping("/{id}")
-    @RequireAdmin("删除用户")
+    @RequirePermission(value = "user:delete", description = "删除用户")
     @Operation(summary = "删除用户", description = "根据用户主键 ID 删除用户，系统管理员账号不允许删除")
     public Result<Void> delete(@Parameter(description = "用户主键 ID", required = true)
                                @PathVariable Long id) {
@@ -129,7 +131,7 @@ public class SysUserController {
     }
 
     @PutMapping("/resetPwd")
-    @RequireAdmin("重置密码")
+    @RequirePermission(value = "user:edit", description = "重置密码")
     @Operation(summary = "重置用户密码", description = "按管理员权限重置指定用户的登录密码")
     public Result<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         sysUserService.resetPassword(request);
@@ -137,6 +139,7 @@ public class SysUserController {
     }
 
     @GetMapping("/checkUsername")
+    @RequirePermission(anyOf = {"user", "user:add", "user:edit"}, description = "校验用户名")
     @Operation(summary = "校验用户名唯一性", description = "校验用户名是否已存在，返回 true 表示用户名可用")
     public Result<Boolean> checkUsername(SysUser user) {
         boolean unique = sysUserService.checkUsernameUnique(user);
@@ -144,7 +147,7 @@ public class SysUserController {
     }
 
     @PutMapping("/{id}/status")
-    @RequireAdmin("切换用户状态")
+    @RequirePermission(value = "user:edit", description = "切换用户状态")
     @Operation(summary = "切换用户状态", description = "将指定用户在启用和禁用状态之间进行切换")
     public Result<Void> toggleStatus(@Parameter(description = "用户主键 ID", required = true)
                                      @PathVariable Long id) {
@@ -153,7 +156,7 @@ public class SysUserController {
     }
 
     @GetMapping("/search")
-    @RequireAdmin("搜索用户")
+    @RequirePermission(anyOf = {"user", "user:add", "user:edit", "user:delete"}, description = "搜索用户")
     @Operation(summary = "按用户名关键字搜索用户", description = "根据用户名关键字模糊搜索用户列表")
     public Result<List<SysUser>> searchUsers(@Parameter(description = "用户名关键字", required = true)
                                              @RequestParam String keyword) {

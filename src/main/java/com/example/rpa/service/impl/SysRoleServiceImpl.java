@@ -6,10 +6,12 @@ import com.example.rpa.dto.AddRoleRequest;
 import com.example.rpa.dto.AssignPermissionRequest;
 import com.example.rpa.dto.RoleQueryRequest;
 import com.example.rpa.dto.UpdateRoleRequest;
+import com.example.rpa.entity.SysResource;
 import com.example.rpa.entity.SysRole;
 import com.example.rpa.entity.SysRoleResource;
 import com.example.rpa.entity.SysUserRole;
 import com.example.rpa.exception.BusinessException;
+import com.example.rpa.mapper.SysResourceMapper;
 import com.example.rpa.mapper.SysRoleMapper;
 import com.example.rpa.mapper.SysRoleResourceMapper;
 import com.example.rpa.mapper.SysUserRoleMapper;
@@ -22,7 +24,10 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +36,7 @@ public class SysRoleServiceImpl implements SysRoleService {
     private final SysRoleMapper sysRoleMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRoleResourceMapper sysRoleResourceMapper;
+    private final SysResourceMapper sysResourceMapper;
 
     @Override
     public Page<SysRole> getRolePage(Integer current, Integer size, SysRole role) {
@@ -86,7 +92,9 @@ public class SysRoleServiceImpl implements SysRoleService {
 
     @Override
     public List<SysRole> getAllRoles() {
-        return sysRoleMapper.selectList(new LambdaQueryWrapper<>());
+        return sysRoleMapper.selectList(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getStatus, 1)
+                .orderByDesc(SysRole::getCreateTime));
     }
 
     @Override
@@ -101,12 +109,10 @@ public class SysRoleServiceImpl implements SysRoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addRole(SysRole role) {
+        validateRoleStatus(role.getStatus());
         if (!checkRoleCodeUnique(role)) {
             throw new BusinessException("角色编码已存在");
         }
-        
-        Long maxId = sysRoleMapper.selectMaxId();
-        role.setId(maxId + 1);
         
         role.setCreateTime(LocalDateTime.now());
         role.setUpdateTime(LocalDateTime.now());
@@ -118,16 +124,14 @@ public class SysRoleServiceImpl implements SysRoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addRole(AddRoleRequest request) {
+        validateRoleStatus(request.getStatus());
         SysRole checkRole = new SysRole();
         checkRole.setRoleCode(request.getRoleCode());
         if (!checkRoleCodeUnique(checkRole)) {
             throw new BusinessException("角色编码已存在");
         }
         
-        Long maxId = sysRoleMapper.selectMaxId();
-        
         SysRole role = new SysRole();
-        role.setId(maxId + 1);
         role.setRoleCode(request.getRoleCode());
         role.setRoleName(request.getRoleName());
         role.setDescription(request.getDescription());
@@ -143,6 +147,8 @@ public class SysRoleServiceImpl implements SysRoleService {
     @Transactional(rollbackFor = Exception.class)
     public void updateRole(SysRole role) {
         SysRole existRole = getRoleById(role.getId());
+        validateRoleStatus(role.getStatus());
+        ensureSuperAdminRoleEnabled(existRole, role.getStatus());
         
         if (!existRole.getRoleCode().equals(role.getRoleCode()) && !checkRoleCodeUnique(role)) {
             throw new BusinessException("角色编码已存在");
@@ -156,6 +162,8 @@ public class SysRoleServiceImpl implements SysRoleService {
     @Transactional(rollbackFor = Exception.class)
     public void updateRole(UpdateRoleRequest request) {
         SysRole existRole = getRoleById(request.getId());
+        validateRoleStatus(request.getStatus());
+        ensureSuperAdminRoleEnabled(existRole, request.getStatus());
         
         SysRole role = new SysRole();
         role.setId(request.getId());
@@ -172,7 +180,10 @@ public class SysRoleServiceImpl implements SysRoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteRole(Long id) {
-        getRoleById(id);
+        SysRole role = getRoleById(id);
+        if ("super_admin".equals(role.getRoleCode())) {
+            throw new BusinessException("超级管理员角色不能删除");
+        }
         
         LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUserRole::getRoleId, id);
@@ -181,6 +192,7 @@ public class SysRoleServiceImpl implements SysRoleService {
             throw new BusinessException("该角色已分配给用户，无法删除");
         }
         
+        sysRoleResourceMapper.deleteByRoleId(id);
         sysRoleMapper.physicalDeleteById(id);
     }
 
@@ -208,17 +220,44 @@ public class SysRoleServiceImpl implements SysRoleService {
         sysRoleResourceMapper.deleteByRoleId(request.getRoleId());
         
         if (request.getResourceIds() != null && !request.getResourceIds().isEmpty()) {
-            Long maxId = sysRoleResourceMapper.selectMaxId();
-            long id = maxId + 1;
+            List<Long> resourceIds = request.getResourceIds().stream()
+                    .filter(resourceId -> resourceId != null && resourceId > 0)
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            if (resourceIds.isEmpty()) {
+                return;
+            }
+
+            List<SysResource> resources = sysResourceMapper.selectBatchIds(resourceIds);
+            Set<Long> existingIds = resources.stream()
+                    .map(SysResource::getId)
+                    .collect(Collectors.toCollection(HashSet::new));
+            if (existingIds.size() != resourceIds.size()) {
+                Set<Long> missingIds = new HashSet<>(resourceIds);
+                missingIds.removeAll(existingIds);
+                throw new BusinessException("资源不存在：" + missingIds);
+            }
             
-            for (Long resourceId : request.getResourceIds()) {
+            for (Long resourceId : resourceIds) {
                 SysRoleResource roleResource = new SysRoleResource();
-                roleResource.setId(id++);
                 roleResource.setRoleId(request.getRoleId());
                 roleResource.setResourceId(resourceId);
                 roleResource.setCreateTime(LocalDateTime.now());
                 sysRoleResourceMapper.insert(roleResource);
             }
+        }
+    }
+
+    private void ensureSuperAdminRoleEnabled(SysRole role, Integer nextStatus) {
+        if ("super_admin".equals(role.getRoleCode()) && nextStatus != null && nextStatus != 1) {
+            throw new BusinessException("超级管理员角色不能禁用");
+        }
+    }
+
+    private void validateRoleStatus(Integer status) {
+        if (status == null || (status != 0 && status != 1)) {
+            throw new BusinessException("角色状态不合法");
         }
     }
 }
